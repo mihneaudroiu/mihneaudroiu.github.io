@@ -33,10 +33,10 @@
               // Replace <username>/<repo> + paths with your actual files.
               const guideList = [
                 {
-                  id: 'bucharest-pdf',
+                  id: 'bucharest',
                   title: 'Bucharest',
-                  type: 'pdf',
-                  url: 'https://raw.githubusercontent.com/mihneaudroiu/mihneaudroiu.github.io/main/guides/Bucharest_Guide.pdf'
+                  type: 'link',
+                  url: '/guides/bucharest.html'
                 }
               ];
               const loaded = await Promise.all(guideList.map(async g => {
@@ -102,23 +102,29 @@
 
       // ------------------ UI ------------------
       function GuideCard({ guide, onOpen }) {
+        const handleClick = () => {
+          if (guide.type === 'link') {
+            window.location.href = guide.url; // go to subpage
+          } else {
+            onOpen(guide.id); // keep current preview behavior for others
+          }
+        };
+      
         return (
-          <div className="rounded-xl border border-neutral-200 dark:border-neutral-800 p-4 flex items-center justify-between gap-4">
+          <div
+            className="rounded-xl border border-neutral-200 dark:border-neutral-800 p-4 flex items-center justify-between gap-4 cursor-pointer"
+            onClick={handleClick}
+          >
             <div className="min-w-0">
               <div className="font-medium truncate">{guide.title}</div>
               <div className="text-xs text-neutral-500 truncate">
                 {guide.type.toUpperCase()} • {new Date(guide.createdAt).toLocaleString()}
               </div>
             </div>
-            <div className="flex items-center gap-2">
-              <button
-                className="px-3 py-1.5 rounded-lg text-sm bg-black text-white dark:bg-white dark:text-black"
-                onClick={() => onOpen(guide.id)}
-              >Open</button>
-            </div>
           </div>
         );
       }
+
 
       function Guides() {
         const [guides] = usePreloadedGuides();
