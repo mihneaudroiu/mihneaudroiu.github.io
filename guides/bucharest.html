@@ -1,14 +1,176 @@
 <!doctype html>
-<html>
+<html lang="en">
   <head>
-    <meta charset="utf-8">
-    <title>Bucharest Guide</title>
-    <style>
-      body { margin: 0; height: 100vh; }
-      iframe { width: 100%; height: 100%; border: none; }
-    </style>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Bucharest Guide — Mihnea</title>
+    <script src="https://cdn.tailwindcss.com"></script>
   </head>
-  <body>
-    <iframe src="Bucharest_Guide.pdf"></iframe>
+  <body class="min-h-dvh bg-neutral-50 text-neutral-900 dark:bg-neutral-950 dark:text-neutral-50">
+    <!-- Top bar -->
+    <header class="sticky top-0 z-10 border-b border-neutral-200/70 dark:border-neutral-800/70 bg-white/70 dark:bg-neutral-900/70 backdrop-blur">
+      <div class="mx-auto max-w-4xl px-4 py-3 flex items-center justify-between">
+        <a href="/" class="text-sm rounded-lg px-3 py-2 border border-neutral-300 dark:border-neutral-700 hover:bg-neutral-100 dark:hover:bg-neutral-800">← Back</a>
+        <div class="text-xs text-neutral-500">© <span id="year"></span> Mihnea</div>
+      </div>
+    </header>
+
+    <main class="mx-auto max-w-4xl px-4 sm:px-6 py-8">
+      <h1 class="text-3xl md:text-4xl font-bold tracking-tight">Bucharest Guide</h1>
+      <p class="mt-2 text-neutral-600 dark:text-neutral-400">Routes, places to eat, and practical notes for getting around.</p>
+
+      <!-- ROUTE 1 -->
+      <article class="mt-8 rounded-2xl border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 p-6">
+        <h2 class="text-xl font-semibold">Route 1: Victory Plaza + Victory Road</h2>
+        <div class="mt-4 grid gap-4 md:grid-cols-2">
+          <figure class="rounded-xl overflow-hidden border border-neutral-200 dark:border-neutral-800 bg-neutral-100 dark:bg-neutral-800">
+            <img src="Images/Picture1.jpg" alt="Victory Plaza / Victory Palace area" class="w-full h-full object-cover">
+          </figure>
+          <figure class="rounded-xl overflow-hidden border border-neutral-200 dark:border-neutral-800 bg-neutral-100 dark:bg-neutral-800">
+            <img src="Images/Picture2.jpg" alt="Victory Road view" class="w-full h-full object-cover">
+          </figure>
+        </div>
+        <div class="prose prose-neutral dark:prose-invert max-w-none mt-4">
+          <p>Start at <strong>Victory Plaza</strong> to see the <strong>Victory Palace</strong> (Prime Minister’s office). The open area out front is often used for protests — you may see people and media there.</p>
+          <p>Walk down <strong>Victory Road</strong>. Along the way — plus ice-cream stops (<em>Velocità</em>, <em>La Romana</em>) — you’ll see the <em>George Enescu Museum</em>, <em>Vernescu House</em>, and the <em>Romanian Academy</em>. Continue to <strong>Revolution Plaza</strong> for the <em>Romanian Atheneum</em>, <em>National Museum of Art</em>, and the <em>Ministry of Internal Affairs</em> (Ceaușescu’s last speech was here —
+            <a href="https://www.youtube.com/watch?v=wWIbCtz_Xwk" target="_blank" rel="noreferrer">video</a>).</p>
+          <p>Keep going to reach <strong>University Plaza</strong>.</p>
+        </div>
+      </article>
+
+      <!-- ROUTE 2 -->
+      <article class="mt-6 rounded-2xl border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 p-6">
+        <h2 class="text-xl font-semibold">Route 2: University Plaza + Cișmigiu Park</h2>
+        <figure class="mt-4 rounded-xl overflow-hidden border border-neutral-200 dark:border-neutral-800 bg-neutral-100 dark:bg-neutral-800">
+          <img src="Images/Picture3.jpg" alt="University Plaza / National Theatre area" class="w-full h-full object-cover">
+        </figure>
+        <div class="prose prose-neutral dark:prose-invert max-w-none mt-4">
+          <p><strong>University Plaza</strong> sits across from the <strong>University of Bucharest</strong> (Math, History, Literature). Historically, students gathered on the balcony to protest communism.</p>
+          <p>Across the intersection is the <strong>Bucharest National Theatre (TNB)</strong>. Head west on <strong>Queen Elizabeth Blvd</strong> to <strong>Cișmigiu Park</strong> (corner: <em>Gheorghe Lazăr High School</em>). The park has a lake with boat rentals in summer.</p>
+          <p>Going south from the high school you’ll reach bridges with river views.</p>
+        </div>
+      </article>
+
+      <!-- ROUTE 3 -->
+      <article class="mt-6 rounded-2xl border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 p-6">
+        <h2 class="text-xl font-semibold">Route 3: Old Town</h2>
+        <figure class="mt-4 rounded-xl overflow-hidden border border-neutral-200 dark:border-neutral-800 bg-neutral-100 dark:bg-neutral-800">
+          <img src="Images/Picture4.jpg" alt="Old Town / Victory Road edge" class="w-full h-full object-cover">
+        </figure>
+        <div class="prose prose-neutral dark:prose-invert max-w-none mt-4">
+          <p>Very animated at night — full of bars, clubs, and restaurants. Along Victory Road’s edge you’ll see the <strong>Palace of the Deposits and Consignments</strong> (gorgeous building) and across from it the <strong>National Museum of History</strong>.</p>
+          <p><strong>Cărturești Carusel</strong> is a striking multi-level bookstore worth popping into.</p>
+          <p>Bottom-right edge opens to <strong>Unirii Plaza</strong>. Walk the central park and head to the fountains (currently under repair). Going west on <strong>Unirii Blvd</strong> brings you to <strong>Constitution Square</strong> with views of the massive <strong>Parliament</strong> building (built under Ceaușescu; reportedly used at &lt;50% capacity today).</p>
+        </div>
+      </article>
+
+      <!-- ROUTE 4 -->
+      <article class="mt-6 rounded-2xl border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 p-6">
+        <h2 class="text-xl font-semibold">Route 4: Triumph Arch + Herăstrău Park</h2>
+        <figure class="mt-4 rounded-xl overflow-hidden border border-neutral-200 dark:border-neutral-800 bg-neutral-100 dark:bg-neutral-800">
+          <img src="Images/Picture5.png" alt="Herăstrău Park lake walk" class="w-full h-full object-cover">
+        </figure>
+        <div class="prose prose-neutral dark:prose-invert max-w-none mt-4">
+          <p>Enter the huge <strong>Herăstrău Park</strong> from the <strong>Triumph Arch</strong> (you can go under it) and walk toward <strong>Aviatorilor Plaza</strong>, one of the main entrances. Follow the marked path to the lake.</p>
+          <p>From the lake, walk left to <strong>Rose Island</strong> (statues) and continue along the water; if you want a shorter stroll, go right. The beauty here is the lakeside walk in good weather — no formal sightseeing stops required.</p>
+        </div>
+      </article>
+
+      <!-- FOOD -->
+      <section class="mt-10 grid gap-6 md:grid-cols-2">
+        <article class="rounded-2xl border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 p-6">
+          <h2 class="text-xl font-semibold">Traditional restaurants (order)</h2>
+          <ol class="mt-3 list-decimal pl-6 space-y-2">
+            <li><strong>Caru’ cu Bere</strong> — great food & stunning interior (book ahead). <a class="underline" target="_blank" rel="noreferrer" href="https://maps.app.goo.gl/eRsEXRx1KfDmV4rP7">Maps</a></li>
+            <li><strong>Hanu’ Berarilor Casa Oprea Soare</strong> — <a class="underline" target="_blank" rel="noreferrer" href="https://maps.app.goo.gl/LZYLTbETBZL9E2pE8">Maps</a></li>
+            <li><strong>Hanul lui Manuc</strong> — <a class="underline" target="_blank" rel="noreferrer" href="https://maps.app.goo.gl/puFA7N429UKgEM2F7">Maps</a></li>
+            <li><strong>Casa Doina</strong> — <a class="underline" target="_blank" rel="noreferrer" href="https://maps.app.goo.gl/9HcYitQg1Mxd2Tjy7">Maps</a></li>
+          </ol>
+        </article>
+
+        <article class="rounded-2xl border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 p-6">
+          <h2 class="text-xl font-semibold">Traditional foods</h2>
+          <ul class="mt-3 list-disc pl-6 space-y-2">
+            <li><strong>Mămăligă</strong></li>
+            <li><strong>Sarmale</strong></li>
+            <li><strong>Mici</strong> — grill staple; eat with mustard</li>
+            <li><strong>Ciorbă</strong> — sour-ish soup</li>
+            <li><strong>Tocăniță</strong></li>
+          </ul>
+          <h3 class="mt-5 font-semibold">Traditional desserts</h3>
+          <ul class="mt-2 list-disc pl-6 space-y-2">
+            <li><strong>Papanași</strong> — doughnut with sour cream & jam</li>
+          </ul>
+        </article>
+
+        <article class="rounded-2xl border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 p-6 md:col-span-2">
+          <h2 class="text-xl font-semibold">Fast food / quick bites</h2>
+          <ul class="mt-3 list-disc pl-6 space-y-2">
+            <li><strong>Dristor Doner Kebap</strong> — iconic shaorma chain (some 24/7)</li>
+            <li><strong>Dristor Kebap</strong> (Old Town) — sibling spot, good backup</li>
+            <li><strong>Cartofiserie</strong> — fries on the go</li>
+            <li><strong>Luca / Petru / Matei</strong> — bakeries; try a <em>covrig</em> (pretzel-like).
+              <span class="block text-sm text-neutral-500 mt-1">
+                <a class="underline" href="https://lucatraditie.ro/produse" target="_blank" rel="noreferrer">Luca</a> •
+                <a class="underline" href="https://www.simigeriapetru.ro/ro/simigerie/covrigi" target="_blank" rel="noreferrer">Petru</a> •
+                <a class="underline" href="https://simigeria-matei.ro/produse-matei" target="_blank" rel="noreferrer">Matei</a>
+              </span>
+            </li>
+            <li><strong>Paul</strong> (French patisserie), <strong>Casa Victoria</strong> (Romanian patisserie); lots of solid local patisseries too</li>
+          </ul>
+        </article>
+      </section>
+
+      <!-- SIGHTS / LOGISTICS -->
+      <section class="mt-10 grid gap-6 md:grid-cols-2">
+        <article class="rounded-2xl border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 p-6">
+          <h2 class="text-xl font-semibold">Key places</h2>
+          <ul class="mt-3 list-disc pl-6 space-y-2">
+            <li><strong>Triumph Arch</strong></li>
+            <li><strong>National Village Museum</strong> — original rural buildings from across Romania; huge, don’t try to see it all if short on time</li>
+            <li><strong>Parliament</strong> — pair with a walk from Gheorghe Lazăr HS to Constitution Square</li>
+          </ul>
+        </article>
+
+        <article class="rounded-2xl border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 p-6">
+          <h2 class="text-xl font-semibold">Grocery stores</h2>
+          <ul class="mt-3 list-disc pl-6 space-y-2">
+            <li><strong>Mega Image</strong> — everywhere</li>
+          </ul>
+        </article>
+
+        <article class="rounded-2xl border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 p-6 md:col-span-2">
+          <h2 class="text-xl font-semibold">Transportation</h2>
+          <p class="mt-3 leading-relaxed">The <strong>subway</strong> is excellent, followed by the <strong>RATB</strong> bus network. You can tap your card at subway gates and on buses; consider a day pass if it fits your plans.</p>
+          <ul class="mt-3 list-disc pl-6 space-y-1">
+            <li><strong>Piata Unirii</strong> (blue) — near where you’re staying</li>
+            <li><strong>Izvor</strong> (red) — by Gheorghe Lazăr HS</li>
+            <li><strong>Universitate</strong> (blue) — at University Plaza</li>
+            <li><strong>Piata Victoriei</strong> (blue) — at Victory Plaza</li>
+            <li><strong>Aviatorilor</strong> (blue) — at Herăstrău entrance mentioned above</li>
+            <li>Major transfers: <em>Piata Unirii</em>, <em>Eroilor</em>, <em>Piata Victoriei</em>, etc.</li>
+          </ul>
+        </article>
+
+        <article class="rounded-2xl border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 p-6 md:col-span-2">
+          <h2 class="text-xl font-semibold">Other notes</h2>
+          <ul class="mt-3 list-disc pl-6 space-y-2">
+            <li>Tax included in sticker prices.</li>
+            <li>Tipping usually only in restaurants (~15% common). Not typical at coffee shops.</li>
+            <li>Cards accepted almost everywhere (restaurants, groceries, transit).</li>
+            <li>City is very English friendly, especially under ~35; if asking for help, look for students.</li>
+          </ul>
+        </article>
+      </section>
+
+      <footer class="mt-12 text-sm text-neutral-500">
+        Last updated: <span id="updated"></span>
+      </footer>
+    </main>
+
+    <script>
+      document.getElementById('year').textContent = new Date().getFullYear();
+      document.getElementById('updated').textContent = new Date().toLocaleDateString();
+    </script>
   </body>
 </html>
