@@ -197,8 +197,7 @@
     </div>
 
     <script>
-        // --- DATASET (Shortened for brevity, assumes 100 list exists or uses this subset) ---
-        // For production, paste your full 100 list here.
+        // --- DATASET ---
         const database = [
             { n: "Hammurabi", y: -1810 }, { n: "Tutankhamun", y: -1341 }, { n: "Homer", y: -800 },
             { n: "Socrates", y: -470 }, { n: "Plato", y: -428 }, { n: "Aristotle", y: -384 },
@@ -239,10 +238,10 @@
         let currentLeft, currentRight;
         let score = 0;
         let highScore = localStorage.getItem('histHighScore') || 0;
-        let cache = {}; // Stores images and text snippets
+        let cache = {}; 
         let hardMode = false;
 
-        // --- DOM ELEMENTS ---
+        // --- DOM ---
         const els = {
             leftName: document.getElementById('left-name'),
             leftYear: document.getElementById('left-year'),
@@ -266,11 +265,26 @@
 
         els.highScore.innerText = highScore;
 
-        // --- SOUND SYNTHESIZER (Idea 5) ---
-        // Web Audio API to generate sounds without external files
+        // --- SOUND SYSTEM ---
+        
+        // 1. Preload the custom winning sound
+        // Ensure you have uploaded 'win.mp3' to your GitHub folder!
+        const winAudio = new Audio('win.mp3');
+        winAudio.volume = 0.5; // Adjust volume as needed
+
+        // 2. Synthesizer for Click/Lose (fallback)
         const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
         
         function playSound(type) {
+            // -- WINNING SOUND (Custom) --
+            if (type === 'win') {
+                // Reset to start in case it's played rapidly
+                winAudio.currentTime = 0;
+                winAudio.play().catch(e => console.log("Audio play failed (user interaction required first)", e));
+                return;
+            }
+
+            // -- OTHER SOUNDS (Synth) --
             if (audioCtx.state === 'suspended') audioCtx.resume();
             
             const osc = audioCtx.createOscillator();
@@ -278,16 +292,7 @@
             osc.connect(gain);
             gain.connect(audioCtx.destination);
 
-            if (type === 'win') {
-                // High Ding
-                osc.type = 'sine';
-                osc.frequency.setValueAtTime(500, audioCtx.currentTime);
-                osc.frequency.exponentialRampToValueAtTime(1000, audioCtx.currentTime + 0.1);
-                gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
-                gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.5);
-                osc.start();
-                osc.stop(audioCtx.currentTime + 0.5);
-            } else if (type === 'lose') {
+            if (type === 'lose') {
                 // Low Buzz
                 osc.type = 'sawtooth';
                 osc.frequency.setValueAtTime(150, audioCtx.currentTime);
@@ -307,11 +312,10 @@
             }
         }
 
-        // --- WIKIPEDIA API FETCH (Idea 1) ---
+        // --- WIKIPEDIA API FETCH ---
         async function fetchWikiData(personName) {
             if (cache[personName]) return cache[personName];
 
-            // Request Image AND Extract (Snippet)
             const url = `https://en.wikipedia.org/w/api.php?action=query&titles=${encodeURIComponent(personName)}&prop=pageimages|extracts&pithumbsize=600&exsentences=2&explaintext&format=json&origin=*`;
             
             try {
@@ -324,7 +328,6 @@
                 let imgUrl = page.thumbnail ? page.thumbnail.source : 'linear-gradient(45deg, #333, #555)';
                 let text = page.extract || "A famous historical figure.";
 
-                // Cache both
                 const result = { img: imgUrl, text: text };
                 cache[personName] = result;
                 return result;
@@ -339,24 +342,19 @@
             return y < 0 ? `${Math.abs(y)} BC` : y;
         }
 
-        // --- GAME LOGIC (Idea 3: Hard Mode) ---
+        // --- GAME LOGIC ---
         function getRandomPerson(exclude) {
-            // If Hard Mode is ON and we have a reference person (exclude), try to find someone close
             if (hardMode && exclude) {
-                // Filter for people within 300 years
                 const candidates = database.filter(p => 
                     p !== exclude && 
                     Math.abs(p.y - exclude.y) < 300 && 
-                    Math.abs(p.y - exclude.y) > 0 // avoid exact same year
+                    Math.abs(p.y - exclude.y) > 0 
                 );
-                
-                // If we found candidates, pick one. If not, fallback to random.
                 if (candidates.length > 0) {
                     return candidates[Math.floor(Math.random() * candidates.length)];
                 }
             }
 
-            // Standard Random
             let p;
             do {
                 p = database[Math.floor(Math.random() * database.length)];
@@ -395,18 +393,13 @@
             els.controls.style.display = 'flex';
             els.result.style.display = 'none';
             els.rightYear.innerText = formatYear(currentRight.y);
-            
-            // Hide right snippet until guessed
             els.rightSnippet.classList.remove('show');
-            
             updateUI('right', currentRight);
 
-            // Animation reset
             els.rightPanel.classList.remove('reveal-anim');
             void els.rightPanel.offsetWidth; 
             els.rightPanel.classList.add('reveal-anim');
             
-            // Remove flash effects
             els.rightPanel.classList.remove('flash-green', 'flash-red');
             els.container.classList.remove('shake-anim');
         }
@@ -418,42 +411,32 @@
             const isYounger = currentRight.y > currentLeft.y; 
             let correct = (guess === 'older' && isOlder) || (guess === 'younger' && isYounger);
 
-            // Show result text
             els.controls.style.display = 'none';
             els.result.style.display = 'block';
             els.rightSnippet.classList.add('show');
 
             if (correct) {
-                // WIN LOGIC
                 playSound('win');
                 score++;
                 els.score.innerText = score;
-                
-                // Visual Feedback (Idea 4)
                 els.rightPanel.classList.add('flash-green');
 
                 setTimeout(() => {
                     currentLeft = currentRight;
                     currentRight = getRandomPerson(currentLeft);
-                    
-                    // Move right image to left panel visually
                     els.leftPanel.style.backgroundImage = els.rightPanel.style.backgroundImage;
                     els.leftName.innerText = currentLeft.n;
                     els.leftYear.innerText = formatYear(currentLeft.y);
                     els.leftSnippet.innerText = els.rightSnippet.innerText;
-                    
                     renderRightRound();
-                }, 2000); // Increased wait time to read snippet
+                }, 2000); 
             } else {
-                // LOSE LOGIC
                 playSound('lose');
                 if (score > highScore) {
                     highScore = score;
                     localStorage.setItem('histHighScore', highScore);
                     els.highScore.innerText = highScore;
                 }
-                
-                // Visual Feedback (Idea 4)
                 els.rightPanel.classList.add('flash-red');
                 els.container.classList.add('shake-anim');
 
@@ -462,7 +445,6 @@
             }
         }
 
-        // Toggle Hard Mode
         els.hardModeCheck.addEventListener('change', (e) => {
             hardMode = e.target.checked;
             playSound('click');
