@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Waypoint Coordinate Finder</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { font-family: sans-serif; background: #222; color: white; padding: 20px; }
+        #image-container {
+            position: relative;
+            display: inline-block;
+            margin-top: 20px;
+            cursor: crosshair;
+            box-shadow: 0 0 20px rgba(0,0,0,0.5);
+        }
+        #preview-img {
+            max-width: 100%;
+            display: block;
+        }
+        .click-marker {
+            position: absolute;
+            width: 10px; height: 10px;
+            background: red; border-radius: 50%;
+            transform: translate(-50%, -50%);
+            pointer-events: none;
+            border: 2px solid white;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="max-w-4xl mx-auto">
+        <h1 class="text-2xl font-bold mb-4">📍 Waypoint Finder</h1>
+        <p class="text-neutral-400 mb-4">1. Upload your map. <br>2. Click where you want a pin. <br>3. Copy the code below.</p>
+
+        <input type="file" id="fileInput" accept="image/*" class="mb-4 block w-full text-sm text-neutral-400
+            file:mr-4 file:py-2 file:px-4
+            file:rounded-full file:border-0
+            file:text-sm file:font-semibold
+            file:bg-blue-600 file:text-white
+            hover:file:bg-blue-700
+        "/>
+
+        <div class="bg-neutral-800 p-4 rounded-lg border border-neutral-700 font-mono text-green-400 text-sm mb-6 break-all">
+            <span class="text-neutral-500">// Your Code Will Appear Here</span><br>
+            <span id="result-text">---</span>
+        </div>
+
+        <div id="image-container">
+            <img id="preview-img" src="" alt="Upload a map to start">
+            <div id="marker" class="click-marker hidden"></div>
+        </div>
+    </div>
+
+    <script>
+        const fileInput = document.getElementById('fileInput');
+        const img = document.getElementById('preview-img');
+        const container = document.getElementById('image-container');
+        const resultText = document.getElementById('result-text');
+        const marker = document.getElementById('marker');
+
+        // Handle Image Upload
+        fileInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                img.src = URL.createObjectURL(file);
+                marker.classList.add('hidden');
+                resultText.innerText = "Click on the map...";
+            }
+        });
+
+        // Handle Click to get %
+        container.addEventListener('click', (e) => {
+            if (!img.src) return;
+
+            // Get standard dimensions
+            const rect = img.getBoundingClientRect();
+            
+            // Calculate relative position of click inside the image
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+
+            // Convert to percentage (Standard Math: (current / total) * 100)
+            const leftPercent = ((x / rect.width) * 100).toFixed(1);
+            const topPercent = ((y / rect.height) * 100).toFixed(1);
+
+            // Move visual marker
+            marker.style.left = leftPercent + '%';
+            marker.style.top = topPercent + '%';
+            marker.classList.remove('hidden');
+
+            // Generate the exact HTML string for your game
+            const codeSnippet = `<div class="waypoint" style="top: ${topPercent}%; left: ${leftPercent}%;" onclick="openPhoto('YOUR_IMAGE_HERE')">
+    <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0c-4.198 0-8 3.403-8 7.602 0 4.198 3.469 9.21 8 16.398 4.531-7.188 8-12.2 8-16.398 0-4.199-3.801-7.602-8-7.602zm0 11c-1.657 0-3-1.343-3-3s1.343-3 3-3 3 1.343 3 3-1.343 3-3 3z"/></svg>
+</div>`;
+
+            // Display code
+            resultText.innerText = codeSnippet;
+            
+            // Auto-copy to clipboard for convenience
+            navigator.clipboard.writeText(codeSnippet);
+            alert("Copied to clipboard! (" + topPercent + "% top, " + leftPercent + "% left)");
+        });
+    </script>
+</body>
+</html>
