@@ -4,10 +4,12 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Mihnea — Personal Site</title>
+    
     <script src="https://cdn.tailwindcss.com"></script>
-    <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
-    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
-    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    
+    <script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.development.js"></script>
+    <script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.development.js"></script>
+    <script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.5/babel.min.js"></script>
   </head>
   <body class="min-h-dvh bg-neutral-50 text-neutral-900 dark:bg-neutral-950 dark:text-neutral-50">
     <div id="root"></div>
@@ -267,7 +269,7 @@
                   <button onClick={() => setTab("guides")} className={classNames("w-full text-left px-3 py-2 rounded-xl text-sm transition-colors",
                     tab === "guides" ? "bg-black text-white dark:bg-white dark:text-black" : "hover:bg-neutral-100 dark:hover:bg-neutral-800 text-neutral-700 dark:text-neutral-200")}>Guides</button>
                   
-                  {/* --- NEW GAMES BUTTON --- */}
+                  {/* --- GAMES BUTTON (Correctly placed and styled) --- */}
                   <button 
                     onClick={() => window.location.href = "games.html"} 
                     className="w-full text-left px-3 py-2 rounded-xl text-sm transition-colors hover:bg-neutral-100 dark:hover:bg-neutral-800 text-neutral-700 dark:text-neutral-200"
