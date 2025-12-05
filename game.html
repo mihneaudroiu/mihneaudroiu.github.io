@@ -8,7 +8,7 @@
         @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;600;800&display=swap');
 
         * { box-sizing: border-box; margin: 0; padding: 0; }
-        body { font-family: 'Poppins', sans-serif; background: #111; color: white; overflow: hidden; height: 100vh; width: 100vw; }
+        body { font-family: 'Poppins', sans-serif; background: #111; color: white; overflow: hidden; height: 100vh; width: 100vw; transition: background 0.2s; }
 
         /* --- Layout --- */
         .container { display: flex; width: 100%; height: 100%; position: relative; }
@@ -23,20 +23,32 @@
             text-align: center;
             background-size: cover;
             background-position: center top;
-            transition: width 0.5s ease;
+            transition: all 0.5s ease;
         }
 
         .panel::before {
             content: ''; position: absolute; top: 0; left: 0; right: 0; bottom: 0;
-            background: rgba(0,0,0,0.5); z-index: 1;
+            background: rgba(0,0,0,0.6); z-index: 1;
             transition: background 0.3s;
         }
 
-        .content { position: relative; z-index: 2; padding: 20px; text-shadow: 0 2px 10px rgba(0,0,0,0.8); }
+        /* Flash Effects */
+        .flash-green::before { background: rgba(46, 213, 115, 0.8) !important; }
+        .flash-red::before { background: rgba(255, 71, 87, 0.8) !important; }
+
+        .content { position: relative; z-index: 2; padding: 20px; text-shadow: 0 2px 10px rgba(0,0,0,0.9); width: 100%; max-width: 600px; }
 
         h1 { font-size: 2.2rem; margin-bottom: 0.5rem; line-height: 1.2; }
         .year-display { font-size: 3.5rem; font-weight: 800; color: #fce303; display: block; margin-top: 10px; }
         .sub-text { font-size: 1.1rem; font-weight: 300; opacity: 0.9; }
+        
+        /* Did You Know Snippet */
+        .wiki-snippet {
+            font-size: 0.9rem; margin-top: 15px; line-height: 1.4;
+            background: rgba(0,0,0,0.5); padding: 10px; border-radius: 10px;
+            opacity: 0; transform: translateY(10px); transition: all 0.5s;
+        }
+        .wiki-snippet.show { opacity: 1; transform: translateY(0); }
 
         /* --- VS Circle --- */
         .vs-badge {
@@ -57,16 +69,55 @@
 
         button.guess-btn:hover { background: white; color: #111; transform: scale(1.05); }
 
-        /* --- HUD --- */
-        .score-box { position: absolute; bottom: 20px; right: 20px; z-index: 20; text-align: right; font-weight: 600; }
-        .score-val { font-size: 1.5rem; }
-        .high-score { font-size: 0.9rem; opacity: 0.7; }
-        
-        .loading-indicator {
-            position: absolute; top: 20px; left: 50%; transform: translateX(-50%);
-            z-index: 30; background: rgba(0,0,0,0.8); padding: 5px 15px;
-            border-radius: 20px; font-size: 0.8rem; display: none;
+        /* --- Top Bar & Controls --- */
+        .top-bar {
+            position: absolute; top: 0; left: 0; width: 100%; z-index: 40;
+            padding: 20px; display: flex; justify-content: space-between; align-items: flex-start;
+            pointer-events: none; /* Let clicks pass through to empty areas */
         }
+        .top-bar > * { pointer-events: auto; }
+
+        .back-btn {
+            color: white; text-decoration: none; font-weight: 600;
+            background: rgba(0,0,0,0.5); padding: 8px 15px; border-radius: 20px;
+            border: 1px solid rgba(255,255,255,0.3); font-size: 0.9rem;
+        }
+
+        .hud-right { text-align: right; }
+        .score-val { font-size: 1.5rem; font-weight: 800; }
+        .high-score { font-size: 0.8rem; opacity: 0.7; }
+
+        /* Hard Mode Toggle */
+        .mode-toggle {
+            margin-top: 10px; display: inline-flex; align-items: center; gap: 8px;
+            background: rgba(0,0,0,0.6); padding: 5px 10px; border-radius: 15px; font-size: 0.8rem;
+        }
+        .switch {
+            position: relative; display: inline-block; width: 34px; height: 20px;
+        }
+        .switch input { opacity: 0; width: 0; height: 0; }
+        .slider {
+            position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0;
+            background-color: #ccc; transition: .4s; border-radius: 34px;
+        }
+        .slider:before {
+            position: absolute; content: ""; height: 14px; width: 14px; left: 3px; bottom: 3px;
+            background-color: white; transition: .4s; border-radius: 50%;
+        }
+        input:checked + .slider { background-color: #ff4757; }
+        input:checked + .slider:before { transform: translateX(14px); }
+
+        /* --- Animations --- */
+        .shake-anim { animation: shake 0.5s cubic-bezier(.36,.07,.19,.97) both; }
+        @keyframes shake {
+            10%, 90% { transform: translate3d(-4px, 0, 0); }
+            20%, 80% { transform: translate3d(8px, 0, 0); }
+            30%, 50%, 70% { transform: translate3d(-16px, 0, 0); }
+            40%, 60% { transform: translate3d(16px, 0, 0); }
+        }
+
+        .reveal-anim { animation: fadeInUp 0.5s ease forwards; }
+        @keyframes fadeInUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
 
         /* --- Game Over Modal --- */
         .modal {
@@ -82,32 +133,40 @@
             font-size: 1.2rem; border-radius: 50px; cursor: pointer; font-weight: 600;
         }
 
-        /* --- Animations --- */
-        .reveal-anim { animation: fadeInUp 0.5s ease forwards; }
-        @keyframes fadeInUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
-        
         @media (max-width: 768px) {
             .container { flex-direction: column; }
             h1 { font-size: 1.5rem; }
             .year-display { font-size: 2.5rem; }
+            .top-bar { padding: 10px; }
         }
     </style>
 </head>
 <body>
 
-    <div class="loading-indicator" id="loading">Fetching Image...</div>
-
-    <div class="score-box">
-        <div>Score: <span class="score-val" id="score">0</span></div>
-        <div class="high-score">Best: <span id="high-score">0</span></div>
+    <div class="top-bar">
+        <a href="index.html" class="back-btn">← Back</a>
+        
+        <div class="hud-right">
+            <div>Score: <span class="score-val" id="score">0</span></div>
+            <div class="high-score">Best: <span id="high-score">0</span></div>
+            
+            <div class="mode-toggle">
+                <span>Hard Mode</span>
+                <label class="switch">
+                    <input type="checkbox" id="hard-mode-check">
+                    <span class="slider"></span>
+                </label>
+            </div>
+        </div>
     </div>
 
-    <div class="container">
+    <div class="container" id="game-container">
         <div class="panel" id="left-panel">
             <div class="content">
                 <h1 id="left-name">...</h1>
                 <span class="sub-text">was born in</span>
                 <span class="year-display" id="left-year">...</span>
+                <div class="wiki-snippet show" id="left-snippet"></div>
             </div>
         </div>
 
@@ -125,6 +184,7 @@
 
                 <div id="result-display" style="display: none;">
                     <span class="year-display" id="right-year">...</span>
+                    <div class="wiki-snippet" id="right-snippet"></div>
                 </div>
             </div>
         </div>
@@ -137,8 +197,8 @@
     </div>
 
     <script>
-        // --- 100 FIGURES DATABASE (Name & Year) ---
-        // Note: Used exact Wikipedia titles for better API matching
+        // --- DATASET (Shortened for brevity, assumes 100 list exists or uses this subset) ---
+        // For production, paste your full 100 list here.
         const database = [
             { n: "Hammurabi", y: -1810 }, { n: "Tutankhamun", y: -1341 }, { n: "Homer", y: -800 },
             { n: "Socrates", y: -470 }, { n: "Plato", y: -428 }, { n: "Aristotle", y: -384 },
@@ -179,59 +239,99 @@
         let currentLeft, currentRight;
         let score = 0;
         let highScore = localStorage.getItem('histHighScore') || 0;
-        let imageCache = {}; 
+        let cache = {}; // Stores images and text snippets
+        let hardMode = false;
 
-        // --- DOM ---
+        // --- DOM ELEMENTS ---
         const els = {
             leftName: document.getElementById('left-name'),
             leftYear: document.getElementById('left-year'),
+            leftSnippet: document.getElementById('left-snippet'),
             leftPanel: document.getElementById('left-panel'),
+            
             rightName: document.getElementById('right-name'),
-            rightPanel: document.getElementById('right-panel'),
             rightYear: document.getElementById('right-year'),
+            rightSnippet: document.getElementById('right-snippet'),
+            rightPanel: document.getElementById('right-panel'),
+            
             controls: document.getElementById('controls'),
             result: document.getElementById('result-display'),
             score: document.getElementById('score'),
             highScore: document.getElementById('high-score'),
             modal: document.getElementById('modal'),
             failMsg: document.getElementById('game-over-msg'),
-            loading: document.getElementById('loading')
+            container: document.getElementById('game-container'),
+            hardModeCheck: document.getElementById('hard-mode-check')
         };
 
         els.highScore.innerText = highScore;
 
-        // --- WIKIPEDIA API FETCH ---
-        async function fetchImage(personName) {
-            // Return cached if exists
-            if (imageCache[personName]) return imageCache[personName];
-
-            els.loading.style.display = 'block';
+        // --- SOUND SYNTHESIZER (Idea 5) ---
+        // Web Audio API to generate sounds without external files
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        
+        function playSound(type) {
+            if (audioCtx.state === 'suspended') audioCtx.resume();
             
-            // Wikipedia API: Get thumbnail for title
-            const url = `https://en.wikipedia.org/w/api.php?action=query&titles=${encodeURIComponent(personName)}&prop=pageimages&format=json&pithumbsize=600&origin=*`;
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+
+            if (type === 'win') {
+                // High Ding
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(500, audioCtx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(1000, audioCtx.currentTime + 0.1);
+                gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.5);
+                osc.start();
+                osc.stop(audioCtx.currentTime + 0.5);
+            } else if (type === 'lose') {
+                // Low Buzz
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(150, audioCtx.currentTime);
+                osc.frequency.linearRampToValueAtTime(100, audioCtx.currentTime + 0.3);
+                gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+                gain.gain.linearRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
+                osc.start();
+                osc.stop(audioCtx.currentTime + 0.3);
+            } else if (type === 'click') {
+                // Short tick
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(800, audioCtx.currentTime);
+                gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
+                osc.start();
+                osc.stop(audioCtx.currentTime + 0.1);
+            }
+        }
+
+        // --- WIKIPEDIA API FETCH (Idea 1) ---
+        async function fetchWikiData(personName) {
+            if (cache[personName]) return cache[personName];
+
+            // Request Image AND Extract (Snippet)
+            const url = `https://en.wikipedia.org/w/api.php?action=query&titles=${encodeURIComponent(personName)}&prop=pageimages|extracts&pithumbsize=600&exsentences=2&explaintext&format=json&origin=*`;
             
             try {
                 const res = await fetch(url);
                 const data = await res.json();
                 const pages = data.query.pages;
                 const pageId = Object.keys(pages)[0];
+                const page = pages[pageId];
                 
-                let imgUrl = '';
-                if (pages[pageId].thumbnail) {
-                    imgUrl = pages[pageId].thumbnail.source;
-                } else {
-                    // Fallback grey gradient if no image found
-                    imgUrl = 'linear-gradient(45deg, #333, #555)';
-                }
+                let imgUrl = page.thumbnail ? page.thumbnail.source : 'linear-gradient(45deg, #333, #555)';
+                let text = page.extract || "A famous historical figure.";
 
-                imageCache[personName] = imgUrl; // Cache it
-                els.loading.style.display = 'none';
-                return imgUrl;
+                // Cache both
+                const result = { img: imgUrl, text: text };
+                cache[personName] = result;
+                return result;
 
             } catch (err) {
                 console.error("Wiki API Error", err);
-                els.loading.style.display = 'none';
-                return 'linear-gradient(45deg, #333, #555)';
+                return { img: 'linear-gradient(45deg, #333, #555)', text: "Could not load info." };
             }
         }
 
@@ -239,8 +339,24 @@
             return y < 0 ? `${Math.abs(y)} BC` : y;
         }
 
-        // --- GAME LOGIC ---
+        // --- GAME LOGIC (Idea 3: Hard Mode) ---
         function getRandomPerson(exclude) {
+            // If Hard Mode is ON and we have a reference person (exclude), try to find someone close
+            if (hardMode && exclude) {
+                // Filter for people within 300 years
+                const candidates = database.filter(p => 
+                    p !== exclude && 
+                    Math.abs(p.y - exclude.y) < 300 && 
+                    Math.abs(p.y - exclude.y) > 0 // avoid exact same year
+                );
+                
+                // If we found candidates, pick one. If not, fallback to random.
+                if (candidates.length > 0) {
+                    return candidates[Math.floor(Math.random() * candidates.length)];
+                }
+            }
+
+            // Standard Random
             let p;
             do {
                 p = database[Math.floor(Math.random() * database.length)];
@@ -249,16 +365,17 @@
         }
 
         async function updateUI(side, person) {
+            const data = await fetchWikiData(person.n);
+            
             if(side === 'left') {
                 els.leftName.innerText = person.n;
                 els.leftYear.innerText = formatYear(person.y);
-                const img = await fetchImage(person.n);
-                els.leftPanel.style.backgroundImage = img.startsWith('http') ? `url('${img}')` : img;
+                els.leftSnippet.innerText = data.text;
+                els.leftPanel.style.backgroundImage = data.img.startsWith('http') ? `url('${data.img}')` : data.img;
             } else {
                 els.rightName.innerText = person.n;
-                // Pre-fetch right image but don't block render of text
-                const img = await fetchImage(person.n);
-                els.rightPanel.style.backgroundImage = img.startsWith('http') ? `url('${img}')` : img;
+                els.rightSnippet.innerText = data.text; 
+                els.rightPanel.style.backgroundImage = data.img.startsWith('http') ? `url('${data.img}')` : data.img;
             }
         }
 
@@ -275,10 +392,12 @@
         }
 
         function renderRightRound() {
-            // Reset right side state
             els.controls.style.display = 'flex';
             els.result.style.display = 'none';
-            els.rightYear.innerText = formatYear(currentRight.y); // Hidden by display:none
+            els.rightYear.innerText = formatYear(currentRight.y);
+            
+            // Hide right snippet until guessed
+            els.rightSnippet.classList.remove('show');
             
             updateUI('right', currentRight);
 
@@ -286,44 +405,68 @@
             els.rightPanel.classList.remove('reveal-anim');
             void els.rightPanel.offsetWidth; 
             els.rightPanel.classList.add('reveal-anim');
+            
+            // Remove flash effects
+            els.rightPanel.classList.remove('flash-green', 'flash-red');
+            els.container.classList.remove('shake-anim');
         }
 
         function handleGuess(guess) {
-            // Logic: "older" means born EARLIER (smaller year number)
-            // "younger" means born LATER (larger year number)
+            playSound('click');
             
-            const isOlder = currentRight.y < currentLeft.y; // Correct if right is older (smaller num)
+            const isOlder = currentRight.y < currentLeft.y; 
             const isYounger = currentRight.y > currentLeft.y; 
-
             let correct = (guess === 'older' && isOlder) || (guess === 'younger' && isYounger);
 
-            // Show result
+            // Show result text
             els.controls.style.display = 'none';
             els.result.style.display = 'block';
+            els.rightSnippet.classList.add('show');
 
             if (correct) {
+                // WIN LOGIC
+                playSound('win');
                 score++;
                 els.score.innerText = score;
+                
+                // Visual Feedback (Idea 4)
+                els.rightPanel.classList.add('flash-green');
+
                 setTimeout(() => {
                     currentLeft = currentRight;
                     currentRight = getRandomPerson(currentLeft);
-                    // Move right image to left panel immediately for visual continuity
+                    
+                    // Move right image to left panel visually
                     els.leftPanel.style.backgroundImage = els.rightPanel.style.backgroundImage;
                     els.leftName.innerText = currentLeft.n;
                     els.leftYear.innerText = formatYear(currentLeft.y);
+                    els.leftSnippet.innerText = els.rightSnippet.innerText;
                     
                     renderRightRound();
-                }, 1500);
+                }, 2000); // Increased wait time to read snippet
             } else {
+                // LOSE LOGIC
+                playSound('lose');
                 if (score > highScore) {
                     highScore = score;
                     localStorage.setItem('histHighScore', highScore);
                     els.highScore.innerText = highScore;
                 }
+                
+                // Visual Feedback (Idea 4)
+                els.rightPanel.classList.add('flash-red');
+                els.container.classList.add('shake-anim');
+
                 els.failMsg.innerHTML = `<b>${currentRight.n}</b> was born in <b>${formatYear(currentRight.y)}</b>.`;
-                setTimeout(() => els.modal.classList.add('active'), 1500);
+                setTimeout(() => els.modal.classList.add('active'), 2000);
             }
         }
+
+        // Toggle Hard Mode
+        els.hardModeCheck.addEventListener('change', (e) => {
+            hardMode = e.target.checked;
+            playSound('click');
+        });
 
         function resetGame() {
             initGame();
