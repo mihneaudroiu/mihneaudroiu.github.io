@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Mihnea — Games</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;600;800&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Poppins', sans-serif; }
+        .game-card:hover { transform: translateY(-4px); }
+    </style>
+</head>
+<body class="min-h-screen bg-neutral-50 text-neutral-900 dark:bg-neutral-950 dark:text-neutral-50 p-6 md:p-12">
+
+    <div class="max-w-6xl mx-auto">
+        <div class="flex items-center gap-4 mb-12">
+            <a href="index.html" class="flex items-center justify-center w-10 h-10 rounded-full bg-neutral-200 dark:bg-neutral-800 hover:bg-neutral-300 dark:hover:bg-neutral-700 transition-colors">
+                <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M19 12H5M12 19l-7-7 7-7"></path></svg>
+            </a>
+            <div>
+                <h1 class="text-3xl font-bold tracking-tight">The Arcade</h1>
+                <p class="text-neutral-500 dark:text-neutral-400">Small tools and games I've built.</p>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+
+            <a href="game.html" class="game-card group relative block h-48 rounded-2xl overflow-hidden border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 shadow-sm hover:shadow-xl transition-all duration-300">
+                
+                <div class="absolute inset-0 h-2/3 bg-gradient-to-br from-yellow-400 to-orange-500 opacity-90 group-hover:scale-105 transition-transform duration-500"></div>
+                
+                <div class="relative h-full p-5 flex flex-col justify-between">
+                    <div class="text-white text-4xl font-black drop-shadow-md">
+                        1809<br><span class="text-2xl opacity-90">vs</span><br>1990
+                    </div>
+                    
+                    <div class="absolute bottom-0 left-0 right-0 bg-white dark:bg-neutral-900 p-4 border-t border-neutral-100 dark:border-neutral-800">
+                        <h3 class="font-bold text-lg leading-none group-hover:text-orange-500 transition-colors">Historical Higher Lower</h3>
+                        <p class="text-xs text-neutral-500 mt-1">Guess who is older.</p>
+                    </div>
+                </div>
+            </a>
+
+            <div class="relative block h-48 rounded-2xl border border-dashed border-neutral-300 dark:border-neutral-800 flex flex-col items-center justify-center text-neutral-400 bg-neutral-100/50 dark:bg-neutral-900/30">
+                <span class="text-sm font-medium">More coming soon...</span>
+            </div>
+
+        </div>
+    </div>
+
+</body>
+</html>
