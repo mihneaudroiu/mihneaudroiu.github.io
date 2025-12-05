@@ -9,12 +9,11 @@
     <style>
         body { font-family: 'Poppins', sans-serif; background-color: #111; color: white; }
 
-        /* --- Map Container --- */
-        /* Must be relative so waypoints can be absolutely positioned inside it */
+        /* Map Container */
         .map-wrapper {
             position: relative;
             width: 100%;
-            max-width: 1000px; /* Prevents map from getting too huge on big screens */
+            max-width: 1000px;
             margin: 20px auto;
             border-radius: 12px;
             overflow: hidden;
@@ -26,33 +25,27 @@
             display: block;
         }
 
-        /* --- Waypoint Pins --- */
+        /* Waypoint Pins */
         .waypoint {
             position: absolute;
-            /* Center the bottom tip of the pin on the coordinate */
-            transform: translate(-50%, -100%);
+            transform: translate(-50%, -100%); /* Centers pin tip */
             cursor: pointer;
-            /* Color of the pin icon */
             color: #ef4444; 
             filter: drop-shadow(0 2px 3px rgba(0,0,0,0.5));
             transition: all 0.2s ease-in-out;
             z-index: 10;
         }
 
-        /* Hover effect for pins */
         .waypoint:hover {
             transform: translate(-50%, -115%) scale(1.1);
             color: #ff0000;
         }
 
-        /* --- Modal (Photo Popup) --- */
+        /* Modal Animation */
         #photo-modal {
-            /* Hidden by default using Tailwind utility class 'hidden' */
             background-color: rgba(0, 0, 0, 0.9);
             backdrop-filter: blur(5px);
         }
-        
-        /* Smooth fade in for modal */
         #photo-modal.flex {
             animation: fadeIn 0.3s ease-out;
         }
@@ -71,70 +64,57 @@
     <p class="text-center text-neutral-400 mb-8">Click the pins to see who was here.</p>
 
     <div class="map-wrapper">
-        <img src="yale_campus_map.png" alt="Campus Map" class="map-image">
+        <img src="map-base.jpg" alt="Campus Map" class="map-image">
 
         <div class="waypoint" style="top: 38%; left: 25%;" onclick="openPhoto('guides/Images/yale_1.jpg')">
             <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0c-4.198 0-8 3.403-8 7.602 0 4.198 3.469 9.21 8 16.398 4.531-7.188 8-12.2 8-16.398 0-4.199-3.801-7.602-8-7.602zm0 11c-1.657 0-3-1.343-3-3s1.343-3 3-3 3 1.343 3 3-1.343 3-3 3z"/></svg>
         </div>
 
-        <div class="waypoint" style="top: 59%; left: 28%;" onclick="openPhoto('https://placehold.co/800x600/png?text=Friend+on+Broadway')">
+        <div class="waypoint" style="top: 59%; left: 28%;" onclick="openPhoto('https://placehold.co/800x600/png?text=Broadway')">
             <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0c-4.198 0-8 3.403-8 7.602 0 4.198 3.469 9.21 8 16.398 4.531-7.188 8-12.2 8-16.398 0-4.199-3.801-7.602-8-7.602zm0 11c-1.657 0-3-1.343-3-3s1.343-3 3-3 3 1.343 3 3-1.343 3-3 3z"/></svg>
         </div>
 
-        <div class="waypoint" style="top: 85%; left: 18%;" onclick="openPhoto('https://placehold.co/600x800/png?text=Friend+at+Crown+St')">
+        <div class="waypoint" style="top: 85%; left: 18%;" onclick="openPhoto('https://placehold.co/600x800/png?text=Crown+St')">
              <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0c-4.198 0-8 3.403-8 7.602 0 4.198 3.469 9.21 8 16.398 4.531-7.188 8-12.2 8-16.398 0-4.199-3.801-7.602-8-7.602zm0 11c-1.657 0-3-1.343-3-3s1.343-3 3-3 3 1.343 3 3-1.343 3-3 3z"/></svg>
         </div>
 
-        <div class="waypoint" style="top: 28%; left: 82%;" onclick="openPhoto('https://placehold.co/800x600/png?text=Friend+on+Sachem')">
+        <div class="waypoint" style="top: 28%; left: 82%;" onclick="openPhoto('https://placehold.co/800x600/png?text=Sachem')">
              <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0c-4.198 0-8 3.403-8 7.602 0 4.198 3.469 9.21 8 16.398 4.531-7.188 8-12.2 8-16.398 0-4.199-3.801-7.602-8-7.602zm0 11c-1.657 0-3-1.343-3-3s1.343-3 3-3 3 1.343 3 3-1.343 3-3 3z"/></svg>
         </div>
 
-        <div class="waypoint" style="top: 52%; left: 88%;" onclick="openPhoto('https://placehold.co/600x800/png?text=Friend+on+Trumbull')">
+        <div class="waypoint" style="top: 52%; left: 88%;" onclick="openPhoto('https://placehold.co/600x800/png?text=Trumbull')">
              <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0c-4.198 0-8 3.403-8 7.602 0 4.198 3.469 9.21 8 16.398 4.531-7.188 8-12.2 8-16.398 0-4.199-3.801-7.602-8-7.602zm0 11c-1.657 0-3-1.343-3-3s1.343-3 3-3 3 1.343 3 3-1.343 3-3 3z"/></svg>
         </div>
     </div>
 
-
     <div id="photo-modal" class="fixed inset-0 z-50 hidden items-center justify-center p-4 sm:p-8" onclick="closePhoto()">
-        
         <button class="absolute top-4 right-4 text-white/70 hover:text-white bg-black/50 rounded-full p-2 transition-colors" onclick="closePhoto()">
             <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
         </button>
 
-        <div class="relative max-h-full max-w-4xl" onclick="event.stopPropagation()">
-            <img id="modal-image" src="" alt="Friend Photo" class="max-h-[85vh] w-auto h-auto rounded-lg shadow-2xl border-4 border-white/10">
+        <div class="relative max-h-full max-w-4xl flex items-center justify-center" onclick="event.stopPropagation()">
+            <img id="modal-image" src="" alt="Memory" class="block max-h-[85vh] w-auto h-auto max-w-full rounded-lg shadow-2xl border-4 border-white/10 object-contain bg-black">
         </div>
     </div>
 
-
     <script>
-        // Get references to DOM elements
         const modal = document.getElementById('photo-modal');
         const modalImg = document.getElementById('modal-image');
 
-        // Function called when a pin is clicked
         function openPhoto(url) {
-            // 1. Set the image source to the URL passed from the pin
             modalImg.src = url;
-            // 2. Show the modal by switching Tailwind classes
             modal.classList.remove('hidden');
             modal.classList.add('flex');
-            // 3. Lock body scrolling behind the modal
             document.body.style.overflow = 'hidden';
         }
 
-        // Function called to close the modal
         function closePhoto() {
-            // 1. Hide the modal
             modal.classList.remove('flex');
             modal.classList.add('hidden');
-            // 2. Clear the image src (good practice to stop loading)
             setTimeout(() => { modalImg.src = ''; }, 200);
-            // 3. Re-enable body scrolling
             document.body.style.overflow = 'auto';
         }
 
-        // Close modal on Escape key press for accessibility
         document.addEventListener('keydown', (e) => {
             if (e.key === 'Escape' && !modal.classList.contains('hidden')) {
                 closePhoto();
