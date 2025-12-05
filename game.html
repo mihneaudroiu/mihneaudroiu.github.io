@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Historical Higher Lower</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;600;800&display=swap');
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: 'Poppins', sans-serif; background: #111; color: white; overflow: hidden; height: 100vh; width: 100vw; }
+
+        /* --- Layout --- */
+        .container { display: flex; width: 100%; height: 100%; position: relative; }
+        
+        .panel {
+            flex: 1;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            background-size: cover;
+            background-position: center top;
+            transition: width 0.5s ease;
+        }
+
+        .panel::before {
+            content: ''; position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.5); z-index: 1;
+            transition: background 0.3s;
+        }
+
+        .content { position: relative; z-index: 2; padding: 20px; text-shadow: 0 2px 10px rgba(0,0,0,0.8); }
+
+        h1 { font-size: 2.2rem; margin-bottom: 0.5rem; line-height: 1.2; }
+        .year-display { font-size: 3.5rem; font-weight: 800; color: #fce303; display: block; margin-top: 10px; }
+        .sub-text { font-size: 1.1rem; font-weight: 300; opacity: 0.9; }
+
+        /* --- VS Circle --- */
+        .vs-badge {
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            width: 50px; height: 50px; background: white; color: #111;
+            border-radius: 50%; display: flex; align-items: center; justify-content: center;
+            font-weight: 800; z-index: 10; box-shadow: 0 0 20px rgba(0,0,0,0.5);
+        }
+
+        /* --- Buttons --- */
+        .btn-group { display: flex; flex-direction: column; gap: 15px; margin-top: 25px; }
+        
+        button.guess-btn {
+            background: rgba(255,255,255,0.15); border: 2px solid white; color: white;
+            padding: 12px 35px; border-radius: 50px; font-size: 1.1rem; font-weight: 600;
+            cursor: pointer; backdrop-filter: blur(5px); transition: all 0.2s; text-transform: uppercase;
+        }
+
+        button.guess-btn:hover { background: white; color: #111; transform: scale(1.05); }
+
+        /* --- HUD --- */
+        .score-box { position: absolute; bottom: 20px; right: 20px; z-index: 20; text-align: right; font-weight: 600; }
+        .score-val { font-size: 1.5rem; }
+        .high-score { font-size: 0.9rem; opacity: 0.7; }
+        
+        .loading-indicator {
+            position: absolute; top: 20px; left: 50%; transform: translateX(-50%);
+            z-index: 30; background: rgba(0,0,0,0.8); padding: 5px 15px;
+            border-radius: 20px; font-size: 0.8rem; display: none;
+        }
+
+        /* --- Game Over Modal --- */
+        .modal {
+            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.92); z-index: 100; flex-direction: column;
+            justify-content: center; align-items: center; text-align: center;
+        }
+        .modal.active { display: flex; }
+        .modal h2 { font-size: 3rem; color: #ff4757; margin-bottom: 10px; }
+        .modal p { font-size: 1.2rem; margin-bottom: 30px; color: #ccc; max-width: 90%; }
+        .restart-btn {
+            background: #2ed573; border: none; color: white; padding: 15px 40px;
+            font-size: 1.2rem; border-radius: 50px; cursor: pointer; font-weight: 600;
+        }
+
+        /* --- Animations --- */
+        .reveal-anim { animation: fadeInUp 0.5s ease forwards; }
+        @keyframes fadeInUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+        
+        @media (max-width: 768px) {
+            .container { flex-direction: column; }
+            h1 { font-size: 1.5rem; }
+            .year-display { font-size: 2.5rem; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="loading-indicator" id="loading">Fetching Image...</div>
+
+    <div class="score-box">
+        <div>Score: <span class="score-val" id="score">0</span></div>
+        <div class="high-score">Best: <span id="high-score">0</span></div>
+    </div>
+
+    <div class="container">
+        <div class="panel" id="left-panel">
+            <div class="content">
+                <h1 id="left-name">...</h1>
+                <span class="sub-text">was born in</span>
+                <span class="year-display" id="left-year">...</span>
+            </div>
+        </div>
+
+        <div class="vs-badge">VS</div>
+
+        <div class="panel" id="right-panel">
+            <div class="content">
+                <h1 id="right-name">...</h1>
+                <span class="sub-text">was born...</span>
+                
+                <div class="btn-group" id="controls">
+                    <button class="guess-btn" onclick="handleGuess('older')">Earlier (Older)</button>
+                    <button class="guess-btn" onclick="handleGuess('younger')">Later (Younger)</button>
+                </div>
+
+                <div id="result-display" style="display: none;">
+                    <span class="year-display" id="right-year">...</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal" id="modal">
+        <h2>Game Over</h2>
+        <p id="game-over-msg"></p>
+        <button class="restart-btn" onclick="resetGame()">Play Again</button>
+    </div>
+
+    <script>
+        // --- 100 FIGURES DATABASE (Name & Year) ---
+        // Note: Used exact Wikipedia titles for better API matching
+        const database = [
+            { n: "Hammurabi", y: -1810 }, { n: "Tutankhamun", y: -1341 }, { n: "Homer", y: -800 },
+            { n: "Socrates", y: -470 }, { n: "Plato", y: -428 }, { n: "Aristotle", y: -384 },
+            { n: "Alexander the Great", y: -356 }, { n: "Ashoka", y: -304 }, { n: "Qin Shi Huang", y: -259 },
+            { n: "Hannibal", y: -247 }, { n: "Julius Caesar", y: -100 }, { n: "Cleopatra", y: -69 },
+            { n: "Augustus", y: -63 }, { n: "Jesus", y: 0 }, { n: "Nero", y: 37 },
+            { n: "Charlemagne", y: 742 }, { n: "William the Conqueror", y: 1028 }, { n: "Genghis Khan", y: 1162 },
+            { n: "Dante Alighieri", y: 1265 }, { n: "Marco Polo", y: 1254 }, { n: "Joan of Arc", y: 1412 },
+            { n: "Christopher Columbus", y: 1451 }, { n: "Leonardo da Vinci", y: 1452 }, { n: "Michelangelo", y: 1475 },
+            { n: "Martin Luther", y: 1483 }, { n: "Henry VIII", y: 1491 }, { n: "Suleiman the Magnificent", y: 1494 },
+            { n: "Elizabeth I", y: 1533 }, { n: "Galileo Galilei", y: 1564 }, { n: "William Shakespeare", y: 1564 },
+            { n: "Pocahontas", y: 1596 }, { n: "Rembrandt", y: 1606 }, { n: "Louis XIV", y: 1638 },
+            { n: "Isaac Newton", y: 1643 }, { n: "Johann Sebastian Bach", y: 1685 }, { n: "Voltaire", y: 1694 },
+            { n: "Benjamin Franklin", y: 1706 }, { n: "Catherine the Great", y: 1729 }, { n: "George Washington", y: 1732 },
+            { n: "Thomas Jefferson", y: 1743 }, { n: "Wolfgang Amadeus Mozart", y: 1756 }, { n: "Marie Antoinette", y: 1755 },
+            { n: "Napoleon", y: 1769 }, { n: "Ludwig van Beethoven", y: 1770 }, { n: "Jane Austen", y: 1775 },
+            { n: "Simon Bolivar", y: 1783 }, { n: "Abraham Lincoln", y: 1809 }, { n: "Charles Darwin", y: 1809 },
+            { n: "Karl Marx", y: 1818 }, { n: "Queen Victoria", y: 1819 }, { n: "Florence Nightingale", y: 1820 },
+            { n: "Louis Pasteur", y: 1822 }, { n: "Sitting Bull", y: 1831 }, { n: "Mark Twain", y: 1835 },
+            { n: "Claude Monet", y: 1840 }, { n: "Thomas Edison", y: 1847 }, { n: "Vincent van Gogh", y: 1853 },
+            { n: "Sigmund Freud", y: 1856 }, { n: "Nikola Tesla", y: 1856 }, { n: "Theodore Roosevelt", y: 1858 },
+            { n: "Mahatma Gandhi", y: 1869 }, { n: "Vladimir Lenin", y: 1870 }, { n: "Winston Churchill", y: 1874 },
+            { n: "Joseph Stalin", y: 1878 }, { n: "Albert Einstein", y: 1879 }, { n: "Helen Keller", y: 1880 },
+            { n: "Pablo Picasso", y: 1881 }, { n: "Franklin D. Roosevelt", y: 1882 }, { n: "Coco Chanel", y: 1883 },
+            { n: "Charlie Chaplin", y: 1889 }, { n: "Adolf Hitler", y: 1889 }, { n: "Amelia Earhart", y: 1897 },
+            { n: "Walt Disney", y: 1901 }, { n: "Frida Kahlo", y: 1907 }, { n: "Mother Teresa", y: 1910 },
+            { n: "Rosa Parks", y: 1913 }, { n: "Nelson Mandela", y: 1918 }, { n: "Marilyn Monroe", y: 1926 },
+            { n: "Queen Elizabeth II", y: 1926 }, { n: "Che Guevara", y: 1928 }, { n: "Anne Frank", y: 1929 },
+            { n: "Martin Luther King Jr.", y: 1929 }, { n: "Neil Armstrong", y: 1930 }, { n: "Elvis Presley", y: 1935 },
+            { n: "John Lennon", y: 1940 }, { n: "Bruce Lee", y: 1940 }, { n: "Muhammad Ali", y: 1942 },
+            { n: "Stephen Hawking", y: 1942 }, { n: "Bob Marley", y: 1945 }, { n: "Freddie Mercury", y: 1946 },
+            { n: "Steven Spielberg", y: 1946 }, { n: "David Bowie", y: 1947 }, { n: "Oprah Winfrey", y: 1954 },
+            { n: "Bill Gates", y: 1955 }, { n: "Steve Jobs", y: 1955 }, { n: "Michael Jackson", y: 1958 },
+            { n: "Princess Diana", y: 1961 }, { n: "Barack Obama", y: 1961 }, { n: "Elon Musk", y: 1971 }
+        ];
+
+        // --- STATE ---
+        let currentLeft, currentRight;
+        let score = 0;
+        let highScore = localStorage.getItem('histHighScore') || 0;
+        let imageCache = {}; 
+
+        // --- DOM ---
+        const els = {
+            leftName: document.getElementById('left-name'),
+            leftYear: document.getElementById('left-year'),
+            leftPanel: document.getElementById('left-panel'),
+            rightName: document.getElementById('right-name'),
+            rightPanel: document.getElementById('right-panel'),
+            rightYear: document.getElementById('right-year'),
+            controls: document.getElementById('controls'),
+            result: document.getElementById('result-display'),
+            score: document.getElementById('score'),
+            highScore: document.getElementById('high-score'),
+            modal: document.getElementById('modal'),
+            failMsg: document.getElementById('game-over-msg'),
+            loading: document.getElementById('loading')
+        };
+
+        els.highScore.innerText = highScore;
+
+        // --- WIKIPEDIA API FETCH ---
+        async function fetchImage(personName) {
+            // Return cached if exists
+            if (imageCache[personName]) return imageCache[personName];
+
+            els.loading.style.display = 'block';
+            
+            // Wikipedia API: Get thumbnail for title
+            const url = `https://en.wikipedia.org/w/api.php?action=query&titles=${encodeURIComponent(personName)}&prop=pageimages&format=json&pithumbsize=600&origin=*`;
+            
+            try {
+                const res = await fetch(url);
+                const data = await res.json();
+                const pages = data.query.pages;
+                const pageId = Object.keys(pages)[0];
+                
+                let imgUrl = '';
+                if (pages[pageId].thumbnail) {
+                    imgUrl = pages[pageId].thumbnail.source;
+                } else {
+                    // Fallback grey gradient if no image found
+                    imgUrl = 'linear-gradient(45deg, #333, #555)';
+                }
+
+                imageCache[personName] = imgUrl; // Cache it
+                els.loading.style.display = 'none';
+                return imgUrl;
+
+            } catch (err) {
+                console.error("Wiki API Error", err);
+                els.loading.style.display = 'none';
+                return 'linear-gradient(45deg, #333, #555)';
+            }
+        }
+
+        function formatYear(y) {
+            return y < 0 ? `${Math.abs(y)} BC` : y;
+        }
+
+        // --- GAME LOGIC ---
+        function getRandomPerson(exclude) {
+            let p;
+            do {
+                p = database[Math.floor(Math.random() * database.length)];
+            } while (p === exclude || (exclude && p.y === exclude.y));
+            return p;
+        }
+
+        async function updateUI(side, person) {
+            if(side === 'left') {
+                els.leftName.innerText = person.n;
+                els.leftYear.innerText = formatYear(person.y);
+                const img = await fetchImage(person.n);
+                els.leftPanel.style.backgroundImage = img.startsWith('http') ? `url('${img}')` : img;
+            } else {
+                els.rightName.innerText = person.n;
+                // Pre-fetch right image but don't block render of text
+                const img = await fetchImage(person.n);
+                els.rightPanel.style.backgroundImage = img.startsWith('http') ? `url('${img}')` : img;
+            }
+        }
+
+        async function initGame() {
+            score = 0;
+            els.score.innerText = score;
+            els.modal.classList.remove('active');
+            
+            currentLeft = getRandomPerson();
+            currentRight = getRandomPerson(currentLeft);
+            
+            await updateUI('left', currentLeft);
+            renderRightRound();
+        }
+
+        function renderRightRound() {
+            // Reset right side state
+            els.controls.style.display = 'flex';
+            els.result.style.display = 'none';
+            els.rightYear.innerText = formatYear(currentRight.y); // Hidden by display:none
+            
+            updateUI('right', currentRight);
+
+            // Animation reset
+            els.rightPanel.classList.remove('reveal-anim');
+            void els.rightPanel.offsetWidth; 
+            els.rightPanel.classList.add('reveal-anim');
+        }
+
+        function handleGuess(guess) {
+            // Logic: "older" means born EARLIER (smaller year number)
+            // "younger" means born LATER (larger year number)
+            
+            const isOlder = currentRight.y < currentLeft.y; // Correct if right is older (smaller num)
+            const isYounger = currentRight.y > currentLeft.y; 
+
+            let correct = (guess === 'older' && isOlder) || (guess === 'younger' && isYounger);
+
+            // Show result
+            els.controls.style.display = 'none';
+            els.result.style.display = 'block';
+
+            if (correct) {
+                score++;
+                els.score.innerText = score;
+                setTimeout(() => {
+                    currentLeft = currentRight;
+                    currentRight = getRandomPerson(currentLeft);
+                    // Move right image to left panel immediately for visual continuity
+                    els.leftPanel.style.backgroundImage = els.rightPanel.style.backgroundImage;
+                    els.leftName.innerText = currentLeft.n;
+                    els.leftYear.innerText = formatYear(currentLeft.y);
+                    
+                    renderRightRound();
+                }, 1500);
+            } else {
+                if (score > highScore) {
+                    highScore = score;
+                    localStorage.setItem('histHighScore', highScore);
+                    els.highScore.innerText = highScore;
+                }
+                els.failMsg.innerHTML = `<b>${currentRight.n}</b> was born in <b>${formatYear(currentRight.y)}</b>.`;
+                setTimeout(() => els.modal.classList.add('active'), 1500);
+            }
+        }
+
+        function resetGame() {
+            initGame();
+        }
+
+        // Start
+        initGame();
+
+    </script>
+</body>
+</html>
