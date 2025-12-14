@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>The Quiet Tea Shop</title>
     <style>
-        /* REPAIR: Added html to selector and height: 100% to fix sizing collapse */
         html, body {
             height: 100%;
             margin: 0;
@@ -15,7 +14,7 @@
             background-color: #1a1a1a;
         }
         #canvas-container {
-            width: 100%; /* Changed to % to utilize the new parent height structure */
+            width: 100%; 
             height: 100%;
             display: block;
         }
@@ -149,7 +148,6 @@
         .task-checkbox { width: 15px; height: 15px; border: 1px solid #fff; margin-right: 10px; display: inline-block; }
         .task-checked { background-color: #00aa00; }
         
-        /* REVERTED: Restored original H1 style */
         h1 { 
             font-size: 4rem; 
             margin-bottom: 10px; 
@@ -158,7 +156,6 @@
             transform: skew(-5deg); 
         }
         
-        /* REVERTED: Removed white box styling, kept centering */
         #instructions {
             text-align: center;
             color: #eee;
@@ -166,7 +163,6 @@
 
         p { font-size: 1.2rem; margin: 5px; font-weight: bold; }
         
-        /* REVERTED: Original key colors (black text on white) */
         .key { background: #fff; color: #000; padding: 2px 8px; border: 2px solid #000; font-weight: 900; }
         
         #blocker { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.8); display: flex; justify-content: center; align-items: center; flex-direction: column; pointer-events: auto; }
@@ -226,7 +222,7 @@
     <script>
         // --- Game Constants ---
         const PLAYER_HEIGHT = 1.7;
-        const CROUCH_HEIGHT = 1.0; // REPAIR: Added crouch height
+        const CROUCH_HEIGHT = 1.0; 
         const WALK_SPEED = 5.0;
         const SPRINT_SPEED = 9.0;
         const JUMP_FORCE = 10.0;
@@ -237,7 +233,7 @@
         let camera, scene, renderer;
         let moveForward = false, moveBackward = false, moveLeft = false, moveRight = false;
         let isSprinting = false;
-        let isCrouching = false; // REPAIR: Added state
+        let isCrouching = false; 
         let canJump = false;
         let prevTime = performance.now();
         const velocity = new THREE.Vector3();
@@ -256,13 +252,19 @@
         let score = 0;
         let isRecipeModalOpen = false;
 
+        // --- NEW FEATURES GLOBALS ---
+        let radioState = 0; // 0: Off, 1: Lo-Fi 1, 2: Lo-Fi 2
+        let nextNoteTime = 0;
+        const steamParticles = [];
+        
+        // Updated Recipes with Quantities
         const ALL_RECIPES = [
-            { id: 1, name: "Royal Milk Tea", base: "Earl Grey", adds: ["Milk", "Sugar"], unlocked: false },
-            { id: 2, name: "Matcha Latte", base: "Matcha", adds: ["Milk"], unlocked: false },
-            { id: 3, name: "Spicy Honey Coffee", base: "Coffee", adds: ["Honey", "Ginger"], unlocked: false },
-            { id: 4, name: "Iced Lemon Tea", base: "Earl Grey", adds: ["Lemon", "Ice"], unlocked: false },
-            { id: 5, name: "Winter Warmer", base: "Coffee", adds: ["Cinnamon", "Milk", "Sugar"], unlocked: false },
-            { id: 6, name: "Hot Cocoa", base: "Hot Cocoa", adds: [], unlocked: false }
+            { id: 1, name: "Royal Milk Tea", base: "Earl Grey", adds: [{n:"Milk", q:1}, {n:"Sugar", q:2}], unlocked: false },
+            { id: 2, name: "Matcha Latte", base: "Matcha", adds: [{n:"Milk", q:2}], unlocked: false },
+            { id: 3, name: "Spicy Honey Coffee", base: "Coffee", adds: [{n:"Honey", q:1}, {n:"Sliced Ginger", q:2}], unlocked: false },
+            { id: 4, name: "Iced Lemon Tea", base: "Earl Grey", adds: [{n:"Sliced Lemon", q:1}, {n:"Ice", q:2}], unlocked: false },
+            { id: 5, name: "Winter Warmer", base: "Coffee", adds: [{n:"Cinnamon", q:1}, {n:"Milk", q:1}, {n:"Sugar", q:1}], unlocked: false },
+            { id: 6, name: "Hot Cocoa", base: "Hot Cocoa", adds: [{n:"Milk", q:1}], unlocked: false }
         ];
         
         const raycaster = new THREE.Raycaster();
@@ -315,11 +317,18 @@
             
             // Initial Items
             createRecipeBook(6, 1.05, 6.5);
-            // REPAIR: Moved bucket to aisle so it is not clipped (-10.5, 0, -8)
-            createSlopBucket(-10.5, 0, -8);
             
-            // REPAIR: Moved Plaque to eye level, unobtrusive
+            // Moved bucket to the front end of the thick table (Counter)
+            createSlopBucket(-8, 0, -3.5);
+            
+            // Moved Plaque to eye level, unobtrusive
             createCreditsPlaque(-14.9, 1.6, -12);
+
+            // Feature: Retro Radio moved to the back wall end of the thick table (Counter)
+            createRadio(-8, 1.35, -14.5);
+            
+            // Feature: Chopping Board
+            createChoppingBoard(-9.2, 1.26, -10);
 
             window.addEventListener('resize', onWindowResize);
             window.addEventListener('mousedown', onMouseDown);
@@ -340,7 +349,6 @@
                     case 'KeyR': toggleRecipeModal(); break;
                     case 'ShiftLeft': 
                     case 'ShiftRight': isSprinting = true; break;
-                    // REPAIR: Added Crouch
                     case 'ControlLeft':
                     case 'ControlRight': isCrouching = true; break;
                     case 'Space': 
@@ -360,7 +368,6 @@
                     case 'KeyD': moveRight = false; break;
                     case 'ShiftLeft': 
                     case 'ShiftRight': isSprinting = false; break;
-                    // REPAIR: Release Crouch
                     case 'ControlLeft':
                     case 'ControlRight': isCrouching = false; break;
                 }
@@ -422,6 +429,39 @@
             }
             return mesh;
         }
+        
+        function createChoppingBoard(x, y, z) {
+            const group = new THREE.Group(); group.position.set(x, y, z);
+            const board = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.1, 0.8));
+            applyStyle(board, 0x8b5a2b); group.add(board);
+            
+            // Knife
+            const knifeGroup = new THREE.Group(); knifeGroup.position.set(0.4, 0.05, -0.3); knifeGroup.rotation.y = 0.5;
+            const handle = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.04, 0.25, 8)); 
+            handle.rotation.z = Math.PI/2; handle.position.x = 0.35;
+            applyStyle(handle, 0x221100); knifeGroup.add(handle);
+            
+            const bladeShape = new THREE.Shape();
+            bladeShape.moveTo(0, 0);
+            bladeShape.lineTo(0.4, 0);
+            bladeShape.lineTo(0.4, 0.08);
+            bladeShape.lineTo(0, 0.06);
+            bladeShape.lineTo(0, 0);
+            const bladeGeo = new THREE.ExtrudeGeometry(bladeShape, { depth: 0.01, bevelEnabled: false });
+            const blade = new THREE.Mesh(bladeGeo);
+            blade.material = new THREE.MeshToonMaterial({color: 0xdddddd, side: THREE.DoubleSide});
+            blade.position.set(-0.1, -0.04, -0.005);
+            
+            const edges = new THREE.EdgesGeometry(bladeGeo);
+            const line = new THREE.LineSegments(edges, new THREE.LineBasicMaterial({ color: 0x000000 }));
+            blade.add(line);
+            
+            knifeGroup.add(blade);
+            group.add(knifeGroup);
+
+            group.userData = { type: "chopping_board", name: "Chopping Board", storedItem: null, knife: knifeGroup };
+            scene.add(group); interactables.push(group); collidableObjects.push({box: new THREE.Box3().setFromObject(group)});
+        }
 
         function createTeacup(x, y, z) {
             const group = new THREE.Group(); group.position.set(x, y, z);
@@ -469,12 +509,14 @@
                 mesh = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.4, 0.2)); mesh.position.y=0.2; mesh.scale.set(1, 0.9, 0.8); applyStyle(mesh, color, true, createSackTexture());
             } else if (shape === "lemon") {
                 mesh = new THREE.Mesh(new THREE.SphereGeometry(0.15, 12, 12)); mesh.scale.x = 1.4; mesh.position.y = 0.15; applyStyle(mesh, color);
+                name = "Whole Lemon"; 
             } else if (shape === "ice") {
                 mesh = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.2, 0.2)); applyStyle(mesh, color, true, null, true, 0.6);
             } else if (shape === "ginger") {
                 mesh = new THREE.Group();
                 const b1 = new THREE.Mesh(new THREE.SphereGeometry(0.1)); b1.position.y=0.1; applyStyle(b1, color, false); mesh.add(b1);
                 const b2 = new THREE.Mesh(new THREE.SphereGeometry(0.08)); b2.position.set(0.1, 0.1, 0); applyStyle(b2, color, false); mesh.add(b2);
+                name = "Whole Ginger"; 
             } else if (shape === "cinnamon") {
                 mesh = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.3)); mesh.position.y=0.03; mesh.rotation.z = Math.PI/2; applyStyle(mesh, color);
             } else if (shape === "mint") {
@@ -488,7 +530,14 @@
                 mesh = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.4, 0.2)); mesh.position.y=0.2; applyStyle(mesh, color);
             }
             group.add(mesh);
-            group.userData = { type: "ingredient", name: name, color: color };
+            
+            group.userData = { 
+                type: "ingredient", 
+                name: name, 
+                color: color,
+                spawnParams: { x:x, y:y, z:z, name:name, color:color, shape:shape }
+            };
+            
             scene.add(group); interactables.push(group);
             return group;
         }
@@ -569,7 +618,6 @@
             return new THREE.CanvasTexture(canvas);
         }
 
-        // New texture for the bright opaque windows
         function createBrightWindowTexture() {
             const canvas = document.createElement('canvas'); canvas.width = 128; canvas.height = 128;
             const ctx = canvas.getContext('2d');
@@ -582,7 +630,6 @@
             return new THREE.CanvasTexture(canvas);
         }
 
-        // New texture generator for the requested painting
         function createFlowerPaintingTexture() {
             const canvas = document.createElement('canvas'); canvas.width = 512; canvas.height = 340; 
             const ctx = canvas.getContext('2d');
@@ -647,7 +694,6 @@
             return tex;
         }
 
-        // REPAIR: Updated texture and size for subtle plaque
         function createCreditsPlaque(x, y, z) {
              const canvas = document.createElement('canvas'); canvas.width = 256; canvas.height = 64;
              const ctx = canvas.getContext('2d');
@@ -708,24 +754,23 @@
             scene.add(win1);
             const frame1 = new THREE.Mesh(new THREE.BoxGeometry(0.2, 4, 6)); applyStyle(frame1, 0x3d2817); frame1.position.set(-15, 3, 0); environmentGroup.add(frame1);
 
-            // -- Right Wall: Opaque Windows with Sunshine --
+            // -- Right Wall: Opaque Windows (REMOVED LIGHT SHAFTS) --
             const brightTex = createBrightWindowTexture();
-            const brightMat = new THREE.MeshBasicMaterial({ map: brightTex }); // Opaque, glowing
+            const brightMat = new THREE.MeshBasicMaterial({ map: brightTex }); 
 
             // Right Window 1
             const win2 = new THREE.Mesh(winGeo, brightMat);
-            win2.position.set(14.88, 5, -5); // Moved up slightly
+            win2.position.set(14.88, 5, -5); 
             win2.rotation.y = -Math.PI / 2;
             scene.add(win2);
             const frame2 = new THREE.Mesh(new THREE.BoxGeometry(0.2, 4, 6)); applyStyle(frame2, 0x3d2817); frame2.position.set(15, 5, -5); environmentGroup.add(frame2);
-            
+
             // Right Window 2
             const win3 = new THREE.Mesh(winGeo, brightMat);
-            win3.position.set(14.88, 5, 5); // Moved up slightly
+            win3.position.set(14.88, 5, 5);
             win3.rotation.y = -Math.PI / 2;
             scene.add(win3);
             const frame3 = new THREE.Mesh(new THREE.BoxGeometry(0.2, 4, 6)); applyStyle(frame3, 0x3d2817); frame3.position.set(15, 5, 5); environmentGroup.add(frame3);
-            
         }
 
         function createRectangularLantern(x, y, z) {
@@ -891,14 +936,92 @@
             environmentGroup.add(group); collidableObjects.push({box: new THREE.Box3().setFromObject(group)});
         }
 
-        // --- Logic ---
+        // --- NEW FEATURE LOGIC ---
+
         function generateRecipe() {
-            const recipe = ALL_RECIPES[Math.floor(Math.random() * ALL_RECIPES.length)];
-            currentRecipe = recipe;
+            // FIX: Ensure we pick a new recipe distinct from the current one
+            let newRecipe;
+            do {
+                newRecipe = ALL_RECIPES[Math.floor(Math.random() * ALL_RECIPES.length)];
+            } while (currentRecipe && newRecipe.id === currentRecipe.id && ALL_RECIPES.length > 1);
+            
+            currentRecipe = newRecipe;
             updateHUDOrder();
             currentOrderCard.classList.remove('flash');
-            void currentOrderCard.offsetWidth;
+            void currentOrderCard.offsetWidth; // Trigger reflow
             currentOrderCard.classList.add('flash');
+        }
+
+        // Radio Features (Code same as previous, ensured presence)
+        function createRadio(x, y, z) {
+            const group = new THREE.Group(); group.position.set(x, y, z);
+            const body = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.5, 0.3)); applyStyle(body, 0x8b4513); group.add(body); 
+            const face = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.4, 0.05)); applyStyle(face, 0xddccaa); face.position.set(0, 0, 0.13); group.add(face);
+            const grill = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.3, 0.06)); applyStyle(grill, 0x444444); grill.position.set(-0.15, 0, 0.13); group.add(grill);
+            const antBase = new THREE.Mesh(new THREE.SphereGeometry(0.05)); applyStyle(antBase, 0x888888); antBase.position.set(-0.3, 0.25, 0); group.add(antBase);
+            const ant = new THREE.Mesh(new THREE.CylinderGeometry(0.01, 0.02, 0.8)); applyStyle(ant, 0x888888); ant.position.set(-0.3, 0.65, 0); group.add(ant);
+            
+            group.userData = { type: "radio", name: "Retro Radio" };
+            scene.add(group); interactables.push(group); collidableObjects.push({box: new THREE.Box3().setFromObject(group)});
+        }
+
+        function toggleRadio() {
+            radioState = (radioState + 1) % 3;
+            const states = ["Off", "Chill Beats", "Piano Vibes"];
+            showMessage(`Radio: ${states[radioState]}`);
+            playSound(400 + (radioState*100), 400 + (radioState*100), 0.1);
+        }
+
+        function updateRadio(time) {
+            if (radioState === 0 || !audioCtx) return;
+            if (time > nextNoteTime) {
+                const chords = radioState === 1 ? [261.6, 311.1, 392.0, 466.2] : [329.6, 392.0, 493.9, 587.3];
+                const note = chords[Math.floor(Math.random() * chords.length)] / (Math.random() > 0.8 ? 2 : 1);
+                const dur = radioState === 1 ? 2.0 : 3.0;
+                
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                const filter = audioCtx.createBiquadFilter();
+                filter.type = "lowpass"; filter.frequency.value = 800;
+
+                osc.type = radioState === 1 ? 'triangle' : 'sine';
+                osc.frequency.setValueAtTime(note, audioCtx.currentTime);
+                gain.gain.setValueAtTime(0, audioCtx.currentTime);
+                gain.gain.linearRampToValueAtTime(0.05, audioCtx.currentTime + 0.1);
+                gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + dur);
+
+                osc.connect(filter); filter.connect(gain); gain.connect(audioCtx.destination);
+                osc.start(); osc.stop(audioCtx.currentTime + dur);
+                nextNoteTime = time + (radioState === 1 ? 800 : 1500) + Math.random() * 500;
+            }
+        }
+
+        function createSteamParticle(pos) {
+            const el = new THREE.Mesh(new THREE.CircleGeometry(0.05, 8), new THREE.MeshBasicMaterial({color:0xffffff, transparent:true, opacity:0.3, side:THREE.DoubleSide}));
+            el.position.copy(pos); el.position.y += 0.2;
+            el.lookAt(camera.position);
+            scene.add(el);
+            steamParticles.push({mesh:el, life:1.0, velocity:new THREE.Vector3((Math.random()-0.5)*0.01, 0.02, (Math.random()-0.5)*0.01)});
+        }
+
+        function updateSteam(delta) {
+            if (Math.random() > 0.85) {
+                interactables.forEach(obj => {
+                    if (obj.userData.type === 'cup' && !obj.userData.isEmpty && (obj.userData.ingredients.includes('Hot Water') || (obj.userData.flavor && (obj.userData.flavor.includes('Hot') || obj.userData.flavor.includes('Warm'))))) {
+                        createSteamParticle(obj.position);
+                    } else if (obj.userData.type === 'pot') { 
+                        createSteamParticle(obj.position);
+                    }
+                });
+            }
+            for (let i = steamParticles.length - 1; i >= 0; i--) {
+                const p = steamParticles[i];
+                p.life -= delta * 0.8;
+                p.mesh.position.add(p.velocity);
+                p.mesh.material.opacity = p.life * 0.3;
+                p.mesh.lookAt(camera.position);
+                if (p.life <= 0) { scene.remove(p.mesh); steamParticles.splice(i, 1); }
+            }
         }
 
         function updateHUDOrder() {
@@ -906,7 +1029,9 @@
             let html = `<div class="recipe-name">${currentRecipe.name}</div>`;
             html += `<div class="recipe-item">Base: ${currentRecipe.base}</div>`;
             if(currentRecipe.adds.length > 0) {
-                html += `<div class="recipe-item">Add: ${currentRecipe.adds.join(", ")}</div>`;
+                // REPAIR: Show Quantities in HUD
+                const addList = currentRecipe.adds.map(a => `${a.n} x${a.q}`).join(", ");
+                html += `<div class="recipe-item">Add: ${addList}</div>`;
             }
             recipeTarget.innerHTML = html;
         }
@@ -914,12 +1039,33 @@
         function checkRecipe(cupContents) {
             if (!currentRecipe || !hasRecipeBook) return;
             const meaningfulIngredients = cupContents.filter(i => i !== "Hot Water");
-            const normalizedCup = meaningfulIngredients.map(i => {
-                if(i.includes("Matcha")) return "Matcha"; if(i.includes("Coffee")) return "Coffee"; if(i.includes("Earl")) return "Earl Grey"; return i;
+            
+            // Count ingredients in cup
+            const cupCounts = {};
+            meaningfulIngredients.forEach(i => {
+                // Normalize Base names
+                let name = i;
+                if(i.includes("Matcha")) name = "Matcha"; 
+                else if(i.includes("Coffee")) name = "Coffee"; 
+                else if(i.includes("Earl")) name = "Earl Grey";
+                cupCounts[name] = (cupCounts[name] || 0) + 1;
             });
-            const hasBase = normalizedCup.includes(currentRecipe.base);
-            const hasAllAdds = currentRecipe.adds.every(add => normalizedCup.includes(add));
-            const countMatch = normalizedCup.length === (1 + currentRecipe.adds.length);
+
+            // Check Base
+            const hasBase = cupCounts[currentRecipe.base] >= 1;
+            
+            // Check Adds Quantities
+            let hasAllAdds = true;
+            let requiredTotal = 1; // 1 for base
+            
+            currentRecipe.adds.forEach(req => {
+                requiredTotal += req.q;
+                if ((cupCounts[req.n] || 0) !== req.q) hasAllAdds = false;
+            });
+
+            // Total count check
+            const countMatch = meaningfulIngredients.length === requiredTotal;
+
             if (hasBase && hasAllAdds && countMatch) {
                 score++; scoreVal.innerText = score; playSound(600, 1000, 0.5, 'square'); showMessage("Order Perfect! Recipe logged.");
                 if (!currentRecipe.unlocked) { currentRecipe.unlocked = true; showMessage("NEW RECIPE UNLOCKED!"); updateRecipeCollectionUI(); }
@@ -932,7 +1078,10 @@
             recipeListContainer.innerHTML = "";
             ALL_RECIPES.forEach(r => {
                 const div = document.createElement('div'); div.className = "recipe-entry";
-                if (r.unlocked) div.innerHTML = `<span class="recipe-name">${r.name}</span><span class="recipe-ingredients">${r.base}, ${r.adds.join(", ")}</span>`;
+                if (r.unlocked) {
+                    const addStr = r.adds.map(a => `${a.n} x${a.q}`).join(", ");
+                    div.innerHTML = `<span class="recipe-name">${r.name}</span><span class="recipe-ingredients">${r.base}, ${addStr}</span>`;
+                }
                 else div.innerHTML = `<span class="recipe-name locked">??????</span><span class="recipe-ingredients locked">Locked</span>`;
                 recipeListContainer.appendChild(div);
             });
@@ -940,18 +1089,26 @@
 
         function toggleRecipeModal() {
             if (!hasRecipeBook) return;
-            isRecipeModalOpen = !isRecipeModalOpen; recipeModal.style.display = isRecipeModalOpen ? 'block' : 'none';
-            if(isRecipeModalOpen) document.exitPointerLock(); else document.body.requestPointerLock();
+            isRecipeModalOpen = !isRecipeModalOpen;
+            recipeModal.style.display = isRecipeModalOpen ? 'block' : 'none';
+            if (isRecipeModalOpen) document.exitPointerLock();
+            else document.body.requestPointerLock();
         }
 
         function updateTaskList(step) {
-            const task1 = document.getElementById('task-1'); const task2 = document.getElementById('task-2');
+            const task1 = document.getElementById('task-1'); 
+            const task2 = document.getElementById('task-2');
             if (step === 1) { 
-                task1.querySelector('.task-checkbox').classList.add('task-checked'); task1.style.textDecoration = "line-through"; task1.style.opacity = 0.5;
-                task2.style.opacity = 1.0; task2.innerHTML = `<span class="task-checkbox"></span>Complete Order`;
+                task1.querySelector('.task-checkbox').classList.add('task-checked'); 
+                task1.style.textDecoration = "line-through"; 
+                task1.style.opacity = 0.5;
+                task2.style.opacity = 1.0; 
+                task2.innerHTML = `<span class="task-checkbox"></span>Complete Order`;
                 generateRecipe();
             } else if (step === 2) { 
-                task2.querySelector('.task-checkbox').classList.add('task-checked'); task2.style.textDecoration = "line-through"; setTimeout(() => { taskList.style.opacity = 0; }, 2000);
+                task2.querySelector('.task-checkbox').classList.add('task-checked'); 
+                task2.style.textDecoration = "line-through"; 
+                setTimeout(() => { taskList.style.opacity = 0; }, 2000);
             }
         }
 
@@ -959,7 +1116,8 @@
             raycaster.setFromCamera(center, camera);
             const hits = raycaster.intersectObjects(interactables, true);
             if (hits.length > 0) {
-                let obj = hits[0].object; while(obj.parent && !obj.userData.type && obj.parent !== scene) obj = obj.parent;
+                let obj = hits[0].object; 
+                while(obj.parent && !obj.userData.type && obj.parent !== scene) obj = obj.parent;
                 if (obj.userData.type && hits[0].distance < INTERACTION_DISTANCE) return { type: 'item', obj: obj, dist: hits[0].distance };
             }
             const envHits = raycaster.intersectObjects(environmentGroup.children, true);
@@ -983,6 +1141,8 @@
                     if (hType === 'ingredient' && tType === 'cup') mixIngredient(target.obj, heldItem);
                     else if (hType === 'cup' && tType === 'slop_bucket') emptyCup(heldItem);
                     else if (hType === 'cup' && tType === 'microwave') useMicrowave(target.obj, heldItem);
+                    // FEATURE: Chopping Interaction
+                    else if (tType === 'chopping_board') useChoppingBoard(target.obj, heldItem);
                     else showMessage("Can't combine these.");
                 } 
                 else showMessage("Can't place here.");
@@ -991,9 +1151,106 @@
                     if (target.obj.userData.type === "recipe_book") {
                         if(!hasRecipeBook) { hasRecipeBook=true; currentOrderCard.style.display='block'; recipeBtn.style.display='block'; updateTaskList(1); showMessage("Recipe List acquired! Press R."); target.obj.visible=false; playSound(300, 600, 0.1); }
                     } else if (target.obj.userData.type === "microwave") { activateMicrowave(target.obj); }
+                    else if (target.obj.userData.type === "radio") { toggleRadio(); } 
+                    // FEATURE: Chopping Board Empty Interaction
+                    else if (target.obj.userData.type === "chopping_board") useChoppingBoard(target.obj, null);
                     else if (target.obj.userData.isStatic) showMessage("That stays there.");
                     else { pickUpItem(target.obj); playSound(200, 400, 0.1); }
                 }
+            }
+        }
+
+        // FEATURE: Chopping Board Logic
+        function useChoppingBoard(board, item) {
+            // 1. Place Item
+            if (item && !board.userData.storedItem) {
+                if(item.userData.type !== 'ingredient') { showMessage("Can only chop ingredients."); return; }
+                camera.remove(item);
+                board.add(item); item.position.set(0, 0.1, 0); item.rotation.set(0,0,0);
+                board.userData.storedItem = item; heldItem = null;
+                showMessage("Placed on board.");
+                return;
+            }
+            // 2. Chop Item
+            if (!item && board.userData.storedItem) {
+                const stored = board.userData.storedItem;
+                if (stored.userData.name.includes("Whole")) {
+                    isAnimatingAction = true;
+                    // Animate Knife
+                    const k = board.userData.knife;
+                    const startRot = k.rotation.z;
+                    const startPos = k.position.y;
+                    
+                    // Chop animation loop
+                    let chops = 0;
+                    const chopInterval = setInterval(() => {
+                        k.position.y = startPos + 0.1;
+                        k.rotation.z = -0.2;
+                        setTimeout(() => {
+                            k.position.y = startPos;
+                            k.rotation.z = startRot;
+                            playSound(500 + Math.random()*200, 100, 0.05, 'sawtooth');
+                        }, 50);
+                        chops++;
+                        if(chops >= 3) {
+                            clearInterval(chopInterval);
+                            finishChopping();
+                        }
+                    }, 150);
+
+                    function finishChopping() {
+                        isAnimatingAction = false;
+                        const originalName = stored.userData.name;
+                        
+                        // Replace model with Sliced version
+                        stored.children = []; // Remove old geometry
+                        
+                        if (originalName.includes("Lemon")) {
+                            // Create 3 lemon slices
+                            for(let i=0; i<3; i++) {
+                                const slice = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 0.02, 16));
+                                slice.rotation.x = Math.PI/2;
+                                slice.rotation.z = Math.random();
+                                slice.position.set((i-1)*0.1, 0.05, (Math.random()-0.5)*0.1);
+                                applyStyle(slice, 0xffff00);
+                                // Inner pith
+                                const pith = new THREE.Mesh(new THREE.CircleGeometry(0.1, 16), new THREE.MeshBasicMaterial({color:0xffffee}));
+                                pith.position.y = 0.011; pith.rotation.x = -Math.PI/2;
+                                slice.add(pith);
+                                stored.add(slice);
+                            }
+                            stored.userData.name = "Sliced Lemon";
+                        } else if (originalName.includes("Ginger")) {
+                            // Create chunks
+                            for(let i=0; i<4; i++) {
+                                const chunk = new THREE.Mesh(new THREE.DodecahedronGeometry(0.06));
+                                chunk.position.set((Math.random()-0.5)*0.3, 0.05, (Math.random()-0.5)*0.2);
+                                applyStyle(chunk, 0xeeddcc);
+                                stored.add(chunk);
+                            }
+                            stored.userData.name = "Sliced Ginger";
+                        } else {
+                            // Fallback
+                            stored.scale.set(0.8, 0.5, 0.8);
+                            stored.userData.name = stored.userData.name.replace("Whole", "Sliced");
+                        }
+                        
+                        showMessage("Sliced!");
+
+                        // REPAIR: Respawn the original whole ingredient
+                        if (stored.userData.spawnParams) {
+                            const p = stored.userData.spawnParams;
+                            createIngredient(p.x, p.y, p.z, p.name, p.color, p.shape);
+                        }
+                    }
+                } else {
+                    // 3. Pick Up Item
+                    board.remove(stored);
+                    board.userData.storedItem = null;
+                    pickUpItem(stored);
+                }
+            } else if (item && board.userData.storedItem) {
+                showMessage("Board is occupied.");
             }
         }
 
@@ -1057,13 +1314,25 @@
 
         function mixIngredient(cup, ingredient) {
             if (!cup.userData.liquidGroup.visible) { showMessage("Pour hot water first!"); return; }
+            
+            // REPAIR: Limit Logic
+            if (cup.userData.ingredients.length >= 7) { showMessage("Cup is too full!"); return; }
+            const ingName = ingredient.userData.name;
+            
+            // REPAIR: Check Whole Fruit
+            if (ingName.includes("Whole")) { showMessage("Needs slicing first!"); return; }
+
+            // REPAIR: Max 3 of same type
+            const typeCount = cup.userData.ingredients.filter(i => i === ingName).length;
+            if (typeCount >= 3) { showMessage(`Too much ${ingName}!`); return; }
+
             isAnimatingAction = true;
             const origRotX = ingredient.rotation.x;
             tweenProperty(ingredient.rotation, 'x', origRotX + 1.0, 400, () => {
                 tweenProperty(ingredient.rotation, 'x', origRotX, 400, () => { isAnimatingAction = false; });
             });
             playSound(600, 800, 0.5, 'square');
-            const ingName = ingredient.userData.name;
+            
             const isBase = ["Earl Grey", "Coffee", "Matcha"].includes(ingName);
             if (isBase) {
                  tweenColor(cup.userData.liquidMesh.material, ingredient.userData.color, 1000);
@@ -1126,45 +1395,16 @@
         function onWindowResize(){ camera.aspect=window.innerWidth/window.innerHeight; camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth,window.innerHeight); }
         function checkCollisions(n){ const b=new THREE.Box3(),s=0.4; b.min.set(n.x-s,0,n.z-s); b.max.set(n.x+s,3,n.z+s); for(let o of collidableObjects)if(b.intersectsBox(o.box))return true; return false; }
 
-        function init() {
-            scene = new THREE.Scene();
-            scene.background = new THREE.Color(0xddccaa); 
-            scene.fog = new THREE.Fog(0xddccaa, 1, 30);
-            scene.add(environmentGroup);
-
-            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-            scene.add(camera);
-
-            renderer = new THREE.WebGLRenderer({ antialias: true });
-            renderer.setPixelRatio(window.devicePixelRatio);
-            renderer.setSize(window.innerWidth, window.innerHeight);
-            renderer.shadowMap.enabled = true;
-            renderer.shadowMap.type = THREE.PCFSoftShadowMap; 
-            document.getElementById('canvas-container').appendChild(renderer.domElement);
-
-            initControls();
-            setupLighting();
-            buildRoom();
-            buildDecorations();
-            buildFurniture();
-            
-            createRecipeBook(6, 1.05, 6.5);
-            // Bucket moved to counter end
-            createSlopBucket(-8, 0, -3.5);
-            // Plaque moved to eye level
-            createCreditsPlaque(-14.9, 1.6, -12);
-
-            window.addEventListener('resize', onWindowResize);
-            window.addEventListener('mousedown', onMouseDown);
-            
-            updateRecipeCollectionUI();
-        }
-
         function animate(){
             requestAnimationFrame(animate);
             const time=performance.now(), delta=(time-prevTime)/1000; prevTime=time;
             updateTweens(time);
+            
+            updateRadio(time);
+            updateSteam(delta);
+
             if(document.pointerLockElement===document.body){
+                // ... physics logic ...
                 velocity.y -= GRAVITY*delta;
                 const spd = isSprinting?SPRINT_SPEED:WALK_SPEED;
                 velocity.x -= velocity.x*10.0*delta; velocity.z -= velocity.z*10.0*delta;
@@ -1177,14 +1417,10 @@
                 np=camera.position.clone(); np.z+=mv.z; if(!checkCollisions(np)) camera.position.z+=mv.z;
                 camera.position.y+=velocity.y*delta;
                 
-                // Logic for crouching
                 const targetHeight = isCrouching ? CROUCH_HEIGHT : PLAYER_HEIGHT;
-                if(camera.position.y < targetHeight){ 
-                    velocity.y=0; 
-                    camera.position.y = targetHeight; 
-                    canJump=true; 
-                }
+                if(camera.position.y < targetHeight){ velocity.y=0; camera.position.y = targetHeight; canJump=true; }
             }
+            // ... interaction raycast logic ...
             const t=getLookingAt();
             if(heldItem){
                 interactionPrompt.style.opacity=1;
@@ -1194,6 +1430,7 @@
                     if(h==='ingredient'&&tt==='cup') interactionPrompt.innerText=`[E] Mix`;
                     else if(h==='cup'&&tt==='slop_bucket') interactionPrompt.innerText=`[E] Empty Cup`;
                     else if(h==='cup'&&tt==='microwave') interactionPrompt.innerText=`[E] Put in Microwave`;
+                    else if(tt==='chopping_board') interactionPrompt.innerText=`[E] Place on Board`; // FEATURE Prompt
                     else interactionPrompt.innerText=`Holding ${h}`;
                 } else if(heldItem.userData.type==='cup') interactionPrompt.innerText=`[Click] Sip`;
                 else if(heldItem.userData.type==='pot') interactionPrompt.innerText=`[Click] Pour`;
@@ -1202,6 +1439,14 @@
                 if(t&&t.type==='item'){ 
                     if(t.obj.userData.isStatic) {
                         if(t.obj.userData.type === 'microwave') interactionPrompt.innerText = `[E] Microwave`;
+                        else if (t.obj.userData.type === 'radio') interactionPrompt.innerText = `[E] Radio`;
+                        // FEATURE Prompt
+                        else if (t.obj.userData.type === 'chopping_board') {
+                            if(t.obj.userData.storedItem) {
+                                if(t.obj.userData.storedItem.userData.name.includes("Whole")) interactionPrompt.innerText = `[E] Slice`;
+                                else interactionPrompt.innerText = `[E] Pick up ${t.obj.userData.storedItem.userData.name}`;
+                            } else interactionPrompt.innerText = `Chopping Board`;
+                        }
                         else interactionPrompt.innerText = `${t.obj.userData.name}`;
                     }
                     else interactionPrompt.innerText=`[E] Pick up ${t.obj.userData.name||t.obj.userData.type}`; 
