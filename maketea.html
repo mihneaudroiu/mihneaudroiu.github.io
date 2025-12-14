@@ -1,0 +1,979 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>The Quiet Tea Shop</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            font-family: 'Courier New', Courier, monospace;
+            background-color: #1a1a1a;
+        }
+        #canvas-container {
+            width: 100vw;
+            height: 100vh;
+            display: block;
+        }
+        #ui-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            color: #eee;
+            text-shadow: 2px 2px 0px #000;
+        }
+        #crosshair {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 8px;
+            height: 8px;
+            background-color: #fff;
+            border: 2px solid #000;
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            pointer-events: none;
+        }
+        #interaction-prompt {
+            position: absolute;
+            top: 58%;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: #ffcc00;
+            opacity: 0;
+            transition: opacity 0.1s;
+            background: rgba(0,0,0,0.8);
+            padding: 8px 15px;
+            border: 2px solid #fff;
+            transform: skew(-10deg) translateX(-50%);
+        }
+        #message-log {
+            position: absolute;
+            bottom: 30px;
+            left: 30px;
+            font-size: 1.2rem;
+            color: #fff;
+            font-weight: bold;
+            background: rgba(0,0,0,0.7);
+            padding: 10px;
+            border-left: 5px solid #ffcc00;
+            opacity: 0;
+            transition: opacity 0.5s;
+        }
+        #current-order-card {
+            position: absolute;
+            bottom: 30px;
+            right: 30px;
+            width: 250px;
+            background: #fff;
+            color: #000;
+            padding: 15px;
+            border: 3px solid #000;
+            font-family: 'Courier New', Courier, monospace;
+            display: none; /* Hidden until book picked up */
+            transform: rotate(-2deg);
+            box-shadow: 5px 5px 0px rgba(0,0,0,0.5);
+        }
+        #task-list {
+            position: absolute;
+            top: 30px;
+            left: 30px;
+            width: 250px;
+            background: rgba(0, 0, 0, 0.8);
+            color: #fff;
+            padding: 15px;
+            border: 2px solid #fff;
+            font-family: 'Courier New', Courier, monospace;
+            text-align: left;
+            box-shadow: 3px 3px 0px #000;
+        }
+        #recipe-collection-btn {
+            position: absolute;
+            top: 30px;
+            right: 30px;
+            background: #ffcc00;
+            color: #000;
+            border: 3px solid #fff;
+            padding: 10px 20px;
+            font-weight: bold;
+            cursor: pointer;
+            pointer-events: auto;
+            font-family: 'Courier New', Courier, monospace;
+            box-shadow: 3px 3px 0px #000;
+            display: none; /* Hidden until book picked up */
+        }
+        #recipe-modal {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 600px;
+            height: 400px;
+            background: #fff;
+            color: #000;
+            border: 5px solid #000;
+            padding: 30px;
+            display: none;
+            pointer-events: auto;
+            box-shadow: 10px 10px 0px rgba(0,0,0,0.5);
+            font-family: 'Courier New', Courier, monospace;
+            overflow-y: auto;
+            z-index: 100;
+        }
+        .recipe-entry {
+            border-bottom: 1px dashed #000;
+            padding: 10px 0;
+            display: flex;
+            justify-content: space-between;
+        }
+        .recipe-name { font-weight: bold; font-size: 1.2em; }
+        .recipe-ingredients { font-style: italic; color: #555; }
+        .locked { color: #aaa; }
+        
+        .task-header { font-size: 1.2em; font-weight: bold; color: #ffcc00; border-bottom: 1px solid #fff; margin-bottom: 10px; display: block;}
+        .task-item { margin: 5px 0; display: flex; align-items: center; }
+        .task-checkbox { width: 15px; height: 15px; border: 1px solid #fff; margin-right: 10px; display: inline-block; }
+        .task-checked { background-color: #00aa00; }
+        
+        h1 { font-size: 4rem; margin-bottom: 10px; color: #ffcc00; text-shadow: 4px 4px 0px #000; transform: skew(-5deg); }
+        p { font-size: 1.2rem; margin: 5px; font-weight: bold; }
+        .key { background: #fff; color: #000; padding: 2px 8px; border: 2px solid #000; font-weight: 900; }
+        #blocker { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.8); display: flex; justify-content: center; align-items: center; flex-direction: column; pointer-events: auto; }
+        .recipe-title { font-size: 1.2em; font-weight: bold; border-bottom: 2px solid #000; margin-bottom: 10px; display: block;}
+        .flash { animation: flashAnim 0.5s ease; }
+        @keyframes flashAnim { 0% { background-color: #ff0; } 100% { background-color: #fff; } }
+    </style>
+</head>
+<body>
+
+    <div id="canvas-container"></div>
+    
+    <div id="crosshair"></div>
+    <div id="interaction-prompt"></div>
+    <div id="message-log"></div>
+    
+    <div id="task-list">
+        <span class="task-header">To-Do List</span>
+        <div id="task-1" class="task-item"><span class="task-checkbox"></span>Find Recipe List</div>
+        <div id="task-2" class="task-item" style="opacity: 0.5"><span class="task-checkbox"></span>Complete 1st Order</div>
+    </div>
+
+    <div id="current-order-card">
+        <span class="recipe-title">Current Order</span>
+        <div id="recipe-target">Loading...</div>
+        <span style="display:block; margin-top:10px; color: #00aa00; font-weight:bold;">Completed: <span id="score-val">0</span></span>
+    </div>
+
+    <button id="recipe-collection-btn">Open Recipes [R]</button>
+
+    <div id="recipe-modal">
+        <h2 style="text-align:center; border-bottom: 3px solid #000;">Master Recipe Collection</h2>
+        <div id="recipe-list-container"></div>
+        <div style="text-align:center; margin-top:20px;">
+            <button id="close-modal-btn" style="padding:5px 20px; font-weight:bold; background:#000; color:#fff; cursor:pointer;">CLOSE</button>
+        </div>
+    </div>
+
+    <div id="blocker">
+        <div id="instructions">
+            <h1>The Quiet Tea Shop</h1>
+            <p>-- CEL-SHADED EDITION --</p>
+            <br>
+            <p>Click to Enter</p>
+            <p><span class="key">W</span><span class="key">A</span><span class="key">S</span><span class="key">D</span> to Move</p>
+            <p><span class="key">SHIFT</span> to Sprint, <span class="key">SPACE</span> to Jump</p>
+            <p><span class="key">E</span> to Pick Up / Place / Mix / Empty</p>
+            <p><span class="key">L-CLICK</span> to Use Item (Sip/Pour)</p>
+            <p><span class="key">R</span> to View Recipes</p>
+        </div>
+    </div>
+
+    <!-- Three.js CDN -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+
+    <script>
+        // --- Game Constants ---
+        const PLAYER_HEIGHT = 1.7;
+        const WALK_SPEED = 5.0;
+        const SPRINT_SPEED = 9.0;
+        const JUMP_FORCE = 10.0;
+        const GRAVITY = 25.0;
+        const INTERACTION_DISTANCE = 4.5;
+
+        // --- Globals ---
+        let camera, scene, renderer;
+        let moveForward = false, moveBackward = false, moveLeft = false, moveRight = false;
+        let isSprinting = false;
+        let canJump = false;
+        let prevTime = performance.now();
+        const velocity = new THREE.Vector3();
+        const direction = new THREE.Vector3();
+        
+        // Object Tracking
+        const environmentGroup = new THREE.Group(); 
+        const collidableObjects = []; 
+        const interactables = [];     
+        let heldItem = null;
+        let isAnimatingAction = false; 
+        
+        // Game Logic
+        let hasRecipeBook = false;
+        let currentRecipe = null;
+        let score = 0;
+        let isRecipeModalOpen = false;
+
+        const ALL_RECIPES = [
+            { id: 1, name: "Royal Milk Tea", base: "Earl Grey", adds: ["Milk", "Sugar"], unlocked: false },
+            { id: 2, name: "Matcha Latte", base: "Matcha", adds: ["Milk"], unlocked: false },
+            { id: 3, name: "Spicy Honey Coffee", base: "Coffee", adds: ["Honey", "Ginger"], unlocked: false },
+            { id: 4, name: "Iced Lemon Tea", base: "Earl Grey", adds: ["Lemon", "Ice"], unlocked: false },
+            { id: 5, name: "Winter Warmer", base: "Coffee", adds: ["Cinnamon", "Milk", "Sugar"], unlocked: false },
+            { id: 6, name: "Hot Cocoa", base: "Hot Cocoa", adds: [], unlocked: false }
+        ];
+        
+        const raycaster = new THREE.Raycaster();
+        const center = new THREE.Vector2(0, 0);
+
+        let audioCtx;
+        const activeTweens = [];
+
+        // DOM Elements
+        const blocker = document.getElementById('blocker');
+        const interactionPrompt = document.getElementById('interaction-prompt');
+        const messageLog = document.getElementById('message-log');
+        const currentOrderCard = document.getElementById('current-order-card');
+        const recipeTarget = document.getElementById('recipe-target');
+        const scoreVal = document.getElementById('score-val');
+        const taskList = document.getElementById('task-list');
+        const recipeModal = document.getElementById('recipe-modal');
+        const recipeListContainer = document.getElementById('recipe-list-container');
+        const recipeBtn = document.getElementById('recipe-collection-btn');
+        const closeModalBtn = document.getElementById('close-modal-btn');
+
+        // Styles
+        const outlineMaterial = new THREE.LineBasicMaterial({ color: 0x000000, linewidth: 3 });
+
+        // --- Initialization ---
+        init();
+        animate();
+
+        function init() {
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0xddccaa); 
+            scene.fog = new THREE.Fog(0xddccaa, 1, 30);
+            scene.add(environmentGroup);
+
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            scene.add(camera);
+
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setPixelRatio(window.devicePixelRatio);
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap; 
+            document.getElementById('canvas-container').appendChild(renderer.domElement);
+
+            initControls();
+            setupLighting();
+            buildRoom();
+            buildDecorations();
+            buildFurniture();
+            
+            // Initial Items
+            createRecipeBook(6, 1.05, 6.5);
+            createSlopBucket(-7, 0, -8);
+            
+            window.addEventListener('resize', onWindowResize);
+            window.addEventListener('mousedown', onMouseDown);
+            
+            updateRecipeCollectionUI();
+        }
+
+        function initControls() {
+            camera.rotation.order = 'YXZ'; 
+
+            const onKeyDown = function (event) {
+                switch (event.code) {
+                    case 'KeyW': moveForward = true; break;
+                    case 'KeyA': moveLeft = true; break;
+                    case 'KeyS': moveBackward = true; break;
+                    case 'KeyD': moveRight = true; break;
+                    case 'KeyE': handleInteractionKey(); break;
+                    case 'KeyR': toggleRecipeModal(); break;
+                    case 'ShiftLeft': 
+                    case 'ShiftRight': isSprinting = true; break;
+                    case 'Space': 
+                        if (canJump) {
+                            velocity.y = JUMP_FORCE;
+                            canJump = false;
+                        }
+                        break;
+                }
+            };
+
+            const onKeyUp = function (event) {
+                switch (event.code) {
+                    case 'KeyW': moveForward = false; break;
+                    case 'KeyA': moveLeft = false; break;
+                    case 'KeyS': moveBackward = false; break;
+                    case 'KeyD': moveRight = false; break;
+                    case 'ShiftLeft': 
+                    case 'ShiftRight': isSprinting = false; break;
+                }
+            };
+
+            document.addEventListener('keydown', onKeyDown);
+            document.addEventListener('keyup', onKeyUp);
+
+            blocker.addEventListener('click', function () {
+                document.body.requestPointerLock();
+                if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            });
+
+            document.addEventListener('pointerlockchange', function () {
+                blocker.style.display = (document.pointerLockElement === document.body) ? 'none' : 'flex';
+            });
+
+            document.body.addEventListener('mousemove', function (event) {
+                if (document.pointerLockElement === document.body) {
+                    camera.rotation.y -= event.movementX * 0.002;
+                    camera.rotation.x -= event.movementY * 0.002;
+                    camera.rotation.x = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, camera.rotation.x));
+                }
+            });
+            
+            recipeBtn.onclick = toggleRecipeModal;
+            closeModalBtn.onclick = toggleRecipeModal;
+        }
+
+        function setupLighting() {
+            const ambientLight = new THREE.AmbientLight(0xffddaa, 0.4);
+            scene.add(ambientLight);
+
+            const dirLight = new THREE.DirectionalLight(0xffeedd, 0.6);
+            dirLight.position.set(10, 20, 10);
+            dirLight.castShadow = true;
+            dirLight.shadow.camera.left = -20;
+            dirLight.shadow.camera.right = 20;
+            dirLight.shadow.camera.top = 20;
+            dirLight.shadow.camera.bottom = -20;
+            dirLight.shadow.mapSize.width = 2048;
+            dirLight.shadow.mapSize.height = 2048;
+            dirLight.shadow.bias = -0.0005; 
+            scene.add(dirLight);
+        }
+
+        // --- Factories ---
+        function applyStyle(mesh, color, addOutline = true, map = null, transparent = false, opacity = 1.0) {
+            mesh.material = new THREE.MeshToonMaterial({
+                color: color, map: map, gradientMap: null,
+                transparent: transparent, opacity: opacity, side: THREE.DoubleSide
+            });
+            mesh.castShadow = !transparent;
+            mesh.receiveShadow = true;
+            if (addOutline && mesh.geometry && !transparent) {
+                const edges = new THREE.EdgesGeometry(mesh.geometry, 25);
+                const line = new THREE.LineSegments(edges, outlineMaterial);
+                mesh.add(line);
+            }
+            return mesh;
+        }
+
+        function createTeacup(x, y, z) {
+            const group = new THREE.Group(); group.position.set(x, y, z);
+            const points = [new THREE.Vector2(0,0), new THREE.Vector2(0.12,0), new THREE.Vector2(0.15,0.25), new THREE.Vector2(0.13,0.25), new THREE.Vector2(0.10,0.02), new THREE.Vector2(0,0.02)];
+            const cup = new THREE.Mesh(new THREE.LatheGeometry(points, 16)); 
+            cup.material = new THREE.MeshToonMaterial({color:0xffffff, side:THREE.DoubleSide}); cup.castShadow=true; group.add(cup);
+            const line = new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.CylinderGeometry(0.15,0.12,0.25,16,1,true)), outlineMaterial); line.position.y=0.125; group.add(line);
+            const lGroup = new THREE.Group(); lGroup.position.y=0.025; group.add(lGroup);
+            const liquid = new THREE.Mesh(new THREE.CylinderGeometry(0.12,0.09,0.20,16), new THREE.MeshToonMaterial({color:0x88ccff, transparent:true, opacity:0.8})); liquid.position.y=0.10; lGroup.add(liquid);
+            lGroup.scale.y=0; lGroup.visible=false;
+            group.userData = { type:"cup", liquidGroup:lGroup, liquidMesh:liquid, flavor:"Empty", ingredients:[], isEmpty:true, temperature:"cold" };
+            scene.add(group); interactables.push(group);
+        }
+
+        function createTeapot(x, y, z, color) {
+            const group = new THREE.Group(); group.position.set(x,y,z);
+            const body = new THREE.Mesh(new THREE.DodecahedronGeometry(0.3)); applyStyle(body,color); body.position.y=0.3; group.add(body);
+            const spout = new THREE.Mesh(new THREE.BoxGeometry(0.1,0.1,0.3)); applyStyle(spout,color); spout.position.set(0.25,0.4,0); spout.rotation.z=-Math.PI/4; group.add(spout);
+            const handle = new THREE.Mesh(new THREE.BoxGeometry(0.3,0.05,0.1)); applyStyle(handle,0x222222); handle.position.set(-0.3,0.4,0); handle.rotation.z=Math.PI/4; group.add(handle);
+            const sMat = new THREE.MeshBasicMaterial({color:0x88ccff, opacity:0.6, transparent:true});
+            const stream = new THREE.Mesh(new THREE.CylinderGeometry(0.015,0.015,1.5), sMat); stream.position.set(0.5,-0.2,0); stream.visible=false; group.add(stream);
+            group.userData = { type:"pot", fillLevel:5, stream:stream }; scene.add(group); interactables.push(group);
+        }
+
+        function createIngredient(x, y, z, name, color, shape="box") {
+            const group = new THREE.Group(); group.position.set(x, y, z);
+            let mesh;
+            if (shape === "bottle") {
+                mesh = new THREE.Group();
+                const body = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 0.4, 16)); body.position.y=0.2; applyStyle(body, 0x88ccff, false, null, true, 0.3); mesh.add(body);
+                const milk = new THREE.Mesh(new THREE.CylinderGeometry(0.11, 0.11, 0.35, 16)); milk.position.y=0.18; applyStyle(milk, 0xffffff, false); mesh.add(milk);
+                const neck = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.12, 0.15, 16)); neck.position.y = 0.475; applyStyle(neck, 0x88ccff, false, null, true, 0.3); mesh.add(neck);
+            } else if (shape === "jar_white") {
+                mesh = new THREE.Group();
+                const pot = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.12, 0.3, 16)); pot.position.y=0.15; applyStyle(pot, 0xffffff); mesh.add(pot);
+                const lid = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.16, 0.05, 16)); lid.position.y = 0.17; applyStyle(lid, 0x664422); mesh.add(lid);
+            } else if (shape === "honey_jar") {
+                mesh = new THREE.Group();
+                const pot = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.14, 0.3, 16)); pot.position.y=0.15; applyStyle(pot, 0xffaa00, true, null, true, 0.8); mesh.add(pot);
+                const lid = new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.13, 0.03, 16)); lid.position.y = 0.16; applyStyle(lid, 0x443322); mesh.add(lid);
+            } else if (shape === "canister") {
+                mesh = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.15, 0.35, 16)); mesh.position.y=0.175; applyStyle(mesh, color);
+                const lid = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.16, 0.05, 16)); lid.position.y = 0.375; applyStyle(lid, 0x222222); mesh.add(lid);
+            } else if (shape === "sack") {
+                mesh = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.4, 0.2)); mesh.position.y=0.2; mesh.scale.set(1, 0.9, 0.8); applyStyle(mesh, color, true, createSackTexture());
+            } else if (shape === "lemon") {
+                mesh = new THREE.Mesh(new THREE.SphereGeometry(0.15, 12, 12)); mesh.scale.x = 1.4; mesh.position.y = 0.15; applyStyle(mesh, color);
+            } else if (shape === "ice") {
+                mesh = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.2, 0.2)); applyStyle(mesh, color, true, null, true, 0.6);
+            } else if (shape === "ginger") {
+                mesh = new THREE.Group();
+                const b1 = new THREE.Mesh(new THREE.SphereGeometry(0.1)); b1.position.y=0.1; applyStyle(b1, color, false); mesh.add(b1);
+                const b2 = new THREE.Mesh(new THREE.SphereGeometry(0.08)); b2.position.set(0.1, 0.1, 0); applyStyle(b2, color, false); mesh.add(b2);
+            } else if (shape === "cinnamon") {
+                mesh = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.3)); mesh.position.y=0.03; mesh.rotation.z = Math.PI/2; applyStyle(mesh, color);
+            } else if (shape === "mint") {
+                mesh = new THREE.Group();
+                for(let i=0; i<3; i++) {
+                    const leaf = new THREE.Mesh(new THREE.CircleGeometry(0.08, 6));
+                    leaf.rotation.x = -Math.PI/2; leaf.rotation.y = Math.random(); leaf.position.set(Math.random()*0.1, 0.01, Math.random()*0.1);
+                    applyStyle(leaf, color, false); leaf.material.side = THREE.DoubleSide; mesh.add(leaf);
+                }
+            } else {
+                mesh = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.4, 0.2)); mesh.position.y=0.2; applyStyle(mesh, color);
+            }
+            group.add(mesh);
+            group.userData = { type: "ingredient", name: name, color: color };
+            scene.add(group); interactables.push(group);
+            return group;
+        }
+
+        function createPlant(x, y, z) {
+            const pot = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.3, 0.5, 8)); applyStyle(pot, 0xaa5522); pot.position.set(x, y + 0.25, z); environmentGroup.add(pot); collidableObjects.push({box: new THREE.Box3().setFromObject(pot)});
+            const stem = new THREE.Mesh(new THREE.BoxGeometry(0.1, 1.5, 0.1)); applyStyle(stem, 0x228b22); stem.position.set(0, 0.5, 0); pot.add(stem);
+        }
+
+        function createRecipeBook(x, y, z) {
+            const group = new THREE.Group(); group.position.set(x, y, z);
+            const book = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.1, 0.8)); applyStyle(book, 0x884422); group.add(book);
+            const page = new THREE.Mesh(new THREE.PlaneGeometry(0.5, 0.7), new THREE.MeshBasicMaterial({color: 0xffffff})); page.rotation.x = -Math.PI/2; page.position.y = 0.06; group.add(page);
+            group.userData = { type: "recipe_book", name: "Recipe List" }; scene.add(group); interactables.push(group);
+        }
+
+        function createSlopBucket(x, y, z) {
+            const group = new THREE.Group(); group.position.set(x, y, z);
+            const bucket = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.3, 0.6, 16)); applyStyle(bucket, 0x555555); bucket.position.y = 0.3; group.add(bucket);
+            const slop = new THREE.Mesh(new THREE.CylinderGeometry(0.35, 0.25, 0.5, 16), new THREE.MeshToonMaterial({color: 0x332211})); slop.position.y = 0.3; group.add(slop);
+            group.userData = { type: "slop_bucket", name: "Slop Bucket", isStatic: true }; 
+            scene.add(group); interactables.push(group); collidableObjects.push({box: new THREE.Box3().setFromObject(group)});
+        }
+
+        function createMicrowave(x, y, z) {
+            const group = new THREE.Group(); group.position.set(x, y, z);
+            const body = new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.8, 1.0));
+            applyStyle(body, 0xdddddd); body.position.y = 0.4; group.add(body);
+            const win = new THREE.Mesh(new THREE.PlaneGeometry(1.0, 0.5));
+            win.material = new THREE.MeshBasicMaterial({color: 0x222222});
+            win.position.set(0, 0.4, 0.51); group.add(win);
+            const light = new THREE.PointLight(0xffffaa, 0, 2);
+            light.position.set(0, 0.4, 0); group.add(light);
+            group.userData = { type: "microwave", name: "Microwave", isStatic: true, light: light, isRunning: false };
+            scene.add(group); interactables.push(group); collidableObjects.push({box: new THREE.Box3().setFromObject(group)});
+        }
+
+        function createBambooTexture() {
+            const canvas = document.createElement('canvas'); canvas.width = 512; canvas.height = 512;
+            const ctx = canvas.getContext('2d');
+            ctx.fillStyle = '#dcb165'; 
+            ctx.fillRect(0, 0, 512, 512);
+            for(let i=0; i<512; i+=20) {
+                 ctx.fillStyle = (i%40===0) ? '#cca055' : '#eec377'; 
+                 ctx.fillRect(i, 0, 18, 512); 
+                 ctx.fillStyle = '#8b5a2b'; 
+                 ctx.fillRect(i+18, 0, 2, 512);
+                 ctx.fillStyle = 'rgba(100,80,50,0.2)';
+                 if(Math.random()>0.4) {
+                     const y = Math.random()*512;
+                     ctx.fillRect(i, y, 18, 6);
+                 }
+            }
+            const tex = new THREE.CanvasTexture(canvas);
+            tex.wrapS = THREE.RepeatWrapping; tex.wrapT = THREE.RepeatWrapping;
+            return tex;
+        }
+
+        function createWoodTexture() {
+            const canvas = document.createElement('canvas'); canvas.width = 512; canvas.height = 512;
+            const ctx = canvas.getContext('2d');
+            ctx.fillStyle = '#555555'; ctx.fillRect(0,0,512,512);
+            ctx.strokeStyle = '#444444'; ctx.lineWidth = 4; ctx.beginPath();
+            for(let y=0; y<512; y+=128) { ctx.moveTo(0,y); ctx.lineTo(512,y); }
+            for(let x=0; x<512; x+=128) { ctx.moveTo(x,0); ctx.lineTo(x,512); }
+            ctx.stroke();
+            const tex = new THREE.CanvasTexture(canvas);
+            tex.wrapS = THREE.RepeatWrapping; tex.wrapT = THREE.RepeatWrapping; tex.repeat.set(4, 4);
+            return tex;
+        }
+
+        function createSackTexture() {
+            const canvas = document.createElement('canvas'); canvas.width = 128; canvas.height = 128;
+            const ctx = canvas.getContext('2d');
+            ctx.fillStyle = '#8b5a2b'; ctx.fillRect(0,0,128,128);
+            ctx.fillStyle = 'rgba(0,0,0,0.1)';
+            for(let i=0; i<400; i++) ctx.fillRect(Math.random()*128, Math.random()*128, 2, 2);
+            return new THREE.CanvasTexture(canvas);
+        }
+
+        function buildRoom() {
+            const floor = new THREE.Mesh(new THREE.PlaneGeometry(30, 30)); applyStyle(floor, 0x888888, false, createWoodTexture()); floor.rotation.x = -Math.PI / 2; environmentGroup.add(floor); 
+            const bambooTex = createBambooTexture(); bambooTex.repeat.set(2, 1);
+            const roomGeo = new THREE.BoxGeometry(30, 10, 30);
+            const wallMat = new THREE.MeshToonMaterial({color: 0xffffff, map: bambooTex, side: THREE.BackSide});
+            const room = new THREE.Mesh(roomGeo, wallMat); room.position.y = 5; environmentGroup.add(room);
+            const walls = [{ pos: [0, 2.5, -15], dim: [30, 5, 1] }, { pos: [0, 2.5, 15], dim: [30, 5, 1] }, { pos: [-15, 2.5, 0], dim: [1, 5, 30] }, { pos: [15, 2.5, 0], dim: [1, 5, 30] }];
+            walls.forEach(w => { const box = new THREE.Box3(); box.setFromCenterAndSize(new THREE.Vector3(...w.pos), new THREE.Vector3(...w.dim)); collidableObjects.push({box: box}); });
+            
+            const ceilingMat = new THREE.MeshToonMaterial({color: 0x3d2817, side: THREE.BackSide});
+            const ceiling = new THREE.Mesh(new THREE.PlaneGeometry(30, 30), ceilingMat);
+            ceiling.rotation.x = Math.PI/2; ceiling.position.y = 10; environmentGroup.add(ceiling);
+
+            const winGeo = new THREE.PlaneGeometry(6, 4);
+            const winMat = new THREE.MeshBasicMaterial({ color: 0xaaddff });
+            const win1 = new THREE.Mesh(winGeo, winMat); win1.position.set(-14.9, 3, 0); win1.rotation.y = Math.PI / 2; scene.add(win1);
+            const frame = new THREE.Mesh(new THREE.BoxGeometry(0.2, 4, 6)); applyStyle(frame, 0x3d2817); frame.position.set(-15, 3, 0); environmentGroup.add(frame);
+        }
+
+        function createRectangularLantern(x, y, z) {
+            const group = new THREE.Group(); group.position.set(x, y, z);
+            const frameGeo = new THREE.BoxGeometry(0.8, 1.2, 0.8);
+            const frameMat = new THREE.MeshToonMaterial({ color: 0x3d2817 });
+            const frame = new THREE.Mesh(frameGeo, frameMat);
+            group.add(frame);
+            const edges = new THREE.EdgesGeometry(frameGeo);
+            const line = new THREE.LineSegments(edges, outlineMaterial);
+            group.add(line);
+
+            const paperGeo = new THREE.BoxGeometry(0.7, 1.1, 0.7);
+            const paperMat = new THREE.MeshBasicMaterial({ color: 0xffffee }); 
+            const paper = new THREE.Mesh(paperGeo, paperMat);
+            group.add(paper);
+            
+            const light = new THREE.PointLight(0xffaa55, 0.5, 8);
+            light.position.y = -0.5;
+            group.add(light);
+
+            const cord = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 2), new THREE.MeshBasicMaterial({color: 0x111111}));
+            cord.position.y = 1.6;
+            group.add(cord);
+
+            environmentGroup.add(group);
+        }
+
+        function createMenuBoards() {
+            const startZ = -14; 
+            for(let i=0; i<4; i++) {
+                const board = new THREE.Mesh(new THREE.BoxGeometry(0.1, 1.5, 2));
+                applyStyle(board, 0xffffff); 
+                board.position.set(-14.8, 6, startZ + (i * 2.5));
+                const frame = new THREE.Mesh(new THREE.BoxGeometry(0.12, 1.6, 2.1));
+                applyStyle(frame, 0xdcb165); 
+                frame.position.set(-14.85, 6, startZ + (i * 2.5));
+                environmentGroup.add(frame);
+                environmentGroup.add(board);
+            }
+        }
+
+        function createHangingVines() {
+            const pos = [[-14, 9, -14], [-14, 9, 14], [14, 9, -14], [14, 9, 14]];
+            pos.forEach(p => {
+                const group = new THREE.Group(); group.position.set(...p);
+                for(let i=0; i<15; i++) {
+                    const leaf = new THREE.Mesh(new THREE.DodecahedronGeometry(0.4));
+                    applyStyle(leaf, 0x228b22);
+                    leaf.position.set(Math.random()*2-1, -Math.random()*3, Math.random()*2-1);
+                    group.add(leaf);
+                }
+                environmentGroup.add(group);
+            });
+        }
+
+        function buildDecorations() {
+            createRectangularLantern(0, 7, 0); createRectangularLantern(6, 7, 6); createRectangularLantern(6, 7, -6); createRectangularLantern(-6, 7, 6); createRectangularLantern(-8, 7, -10); 
+            for(let z=-12; z<=12; z+=4) { const b=new THREE.Mesh(new THREE.CylinderGeometry(0.2,0.2,30)); b.rotation.z=Math.PI/2; applyStyle(b,0x8b5a2b); b.position.set(0,9.8,z); environmentGroup.add(b); }
+            createMenuBoards();
+            createHangingVines();
+        }
+
+        function buildFurniture() {
+            createCounter(-8, 0, -10);
+            createBackCounter(-13, 0, -10);
+            createTableSet(0, 0, 0); createTableSet(6, 0, 6); createTableSet(6, 0, -6); createTableSet(-6, 0, 6);
+            createShelf(14, 2, 0); createShelf(14, 4, 0);
+            createPlant(12, 0, 12);
+        }
+
+        function createCounter(x, y, z) {
+            const w=4; const h=1.2; const d=12; 
+            const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, h, d));
+            const bambooTex = createBambooTexture();
+            mesh.material = new THREE.MeshToonMaterial({ color: 0xffffff, map: bambooTex });
+            mesh.castShadow = true; mesh.receiveShadow = true;
+            mesh.position.set(x, h/2, z);
+            environmentGroup.add(mesh); collidableObjects.push({box: new THREE.Box3().setFromObject(mesh)});
+            
+            const top = new THREE.Mesh(new THREE.BoxGeometry(w+0.2, 0.1, d+0.2)); applyStyle(top, 0xcccccc); top.position.set(x, h+0.05, z); environmentGroup.add(top);
+            
+            const signBack = new THREE.Mesh(new THREE.CylinderGeometry(1.5,1.5,0.1,32)); signBack.rotation.z=Math.PI/2; signBack.position.set(x+w/2+0.05, h/2, z); applyStyle(signBack, 0x3d2817); environmentGroup.add(signBack);
+            const signFace = new THREE.Mesh(new THREE.CylinderGeometry(1.3,1.3,0.12,32)); signFace.rotation.z=Math.PI/2; signFace.position.set(x+w/2+0.05, h/2, z); signFace.material=new THREE.MeshBasicMaterial({color:0xffffee}); environmentGroup.add(signFace);
+            const t1 = new THREE.Mesh(new THREE.BoxGeometry(1.4, 0.2, 0.1)); t1.position.set(x+w/2+0.12, h/2+0.5, z); t1.rotation.y=Math.PI/2; environmentGroup.add(t1);
+
+            const reg = new THREE.Mesh(new THREE.BoxGeometry(1, 0.8, 1)); applyStyle(reg, 0x555555); reg.position.set(x, h+0.5, z); scene.add(reg);
+            createTeapot(x+1, h, z+2, 0xff6666);
+        }
+
+        function createBackCounter(x, y, z) {
+            const w=2; const h=1.1; const d=12;
+            const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, h, d));
+            applyStyle(mesh, 0x5c4033); mesh.position.set(x, h/2, z);
+            environmentGroup.add(mesh); collidableObjects.push({box: new THREE.Box3().setFromObject(mesh)});
+            
+            createIngredient(x, h, z+4, "Matcha", 0x88cc44, "canister");
+            createIngredient(x, h, z+3, "Coffee", 0x442211, "sack");
+            createIngredient(x, h, z+2, "Cocoa", 0x553311, "canister"); 
+            createIngredient(x, h, z+1, "Earl Grey", 0x444488, "box");
+            createIngredient(x, h, z-1, "Milk", 0xffffff, "bottle");
+            createIngredient(x, h, z-2, "Sugar", 0xeeeeee, "jar_white");
+            createIngredient(x, h, z-3, "Cinnamon", 0x884422, "cinnamon");
+            createIngredient(x, h, z-4, "Honey", 0xffaa00, "honey_jar");
+            
+            createMicrowave(x, h, z-5);
+            
+            const shelf = new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.1, 10)); applyStyle(shelf, 0xdcb165);
+            shelf.position.set(x, h+1.5, z); environmentGroup.add(shelf);
+            createIngredient(x, h+1.5, z+2, "Lemon", 0xffff00, "lemon");
+            createIngredient(x, h+1.5, z-2, "Mint", 0x44aa44, "mint");
+            createIngredient(x, h+1.5, z, "Ice", 0xaaddff, "ice");
+            createIngredient(x, h+1.5, z+3.5, "Ginger", 0xeeddcc, "ginger");
+        }
+
+        function createTableSet(x, y, z) {
+            const h = 1.0, r = 1.6;
+            const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.15, h)); applyStyle(leg, 0xdcb165); leg.position.set(x, y + h/2, z); environmentGroup.add(leg);
+            const top = new THREE.Mesh(new THREE.BoxGeometry(2.5, 0.1, 2.5)); applyStyle(top, 0xdcb165); top.position.set(x, y + h, z); environmentGroup.add(top);
+            const tableBox = new THREE.Box3().setFromObject(top); tableBox.min.y = 0; collidableObjects.push({box: tableBox});
+            createChair(x - 2, y, z, Math.PI/2); createChair(x + 2, y, z, -Math.PI/2);
+            if (Math.random() > 0.3) { createTeacup(x - 0.5, h + 0.05, z); createTeacup(x + 0.5, h + 0.05, z); }
+        }
+
+        function createChair(x, y, z, rot) {
+            const group = new THREE.Group(); group.position.set(x, y, z); group.rotation.y = rot;
+            const bambooColor = 0xdcb165;
+            const seat = new THREE.Mesh(new THREE.BoxGeometry(1.0, 0.1, 1.0)); applyStyle(seat, bambooColor); seat.position.y = 0.6; group.add(seat);
+            const back = new THREE.Mesh(new THREE.BoxGeometry(0.1, 1.0, 1.0)); applyStyle(back, bambooColor); back.position.set(-0.45, 1.1, 0); group.add(back);
+            const l1 = new THREE.Mesh(new THREE.CylinderGeometry(0.08,0.08,0.6)); applyStyle(l1, bambooColor); l1.position.set(0.4, 0.3, 0.4); group.add(l1);
+            const l2 = new THREE.Mesh(new THREE.CylinderGeometry(0.08,0.08,0.6)); applyStyle(l2, bambooColor); l2.position.set(-0.4, 0.3, 0.4); group.add(l2);
+            const l3 = new THREE.Mesh(new THREE.CylinderGeometry(0.08,0.08,0.6)); applyStyle(l3, bambooColor); l3.position.set(0.4, 0.3, -0.4); group.add(l3);
+            const l4 = new THREE.Mesh(new THREE.CylinderGeometry(0.08,0.08,0.6)); applyStyle(l4, bambooColor); l4.position.set(-0.4, 0.3, -0.4); group.add(l4);
+            environmentGroup.add(group); collidableObjects.push({box: new THREE.Box3().setFromObject(group)});
+        }
+
+        function createShelf(x, y, z) {
+            const mesh = new THREE.Mesh(new THREE.BoxGeometry(1, 0.1, 10)); applyStyle(mesh, 0xdcb165); mesh.position.set(x, y, z);
+            environmentGroup.add(mesh); collidableObjects.push({box: new THREE.Box3().setFromObject(mesh)});
+        }
+
+        // --- Logic ---
+        function generateRecipe() {
+            const recipe = ALL_RECIPES[Math.floor(Math.random() * ALL_RECIPES.length)];
+            currentRecipe = recipe;
+            updateHUDOrder();
+            currentOrderCard.classList.remove('flash');
+            void currentOrderCard.offsetWidth;
+            currentOrderCard.classList.add('flash');
+        }
+
+        function updateHUDOrder() {
+            if(!currentRecipe) return;
+            let html = `<div class="recipe-name">${currentRecipe.name}</div>`;
+            html += `<div class="recipe-item">Base: ${currentRecipe.base}</div>`;
+            if(currentRecipe.adds.length > 0) {
+                html += `<div class="recipe-item">Add: ${currentRecipe.adds.join(", ")}</div>`;
+            }
+            recipeTarget.innerHTML = html;
+        }
+
+        function checkRecipe(cupContents) {
+            if (!currentRecipe || !hasRecipeBook) return;
+            const normalizedCup = cupContents.map(i => {
+                if(i.includes("Matcha")) return "Matcha"; if(i.includes("Coffee")) return "Coffee"; if(i.includes("Earl")) return "Earl Grey"; return i;
+            });
+            const hasBase = normalizedCup.includes(currentRecipe.base);
+            const hasAllAdds = currentRecipe.adds.every(add => normalizedCup.includes(add));
+            const countMatch = normalizedCup.length === (1 + currentRecipe.adds.length);
+
+            if (hasBase && hasAllAdds && countMatch) {
+                score++; scoreVal.innerText = score; playSound(600, 1000, 0.5, 'square'); showMessage("Order Perfect! Recipe logged.");
+                if (!currentRecipe.unlocked) { currentRecipe.unlocked = true; showMessage("NEW RECIPE UNLOCKED!"); updateRecipeCollectionUI(); }
+                if (score === 1) updateTaskList(2);
+                setTimeout(generateRecipe, 2000); 
+            } else { showMessage("That doesn't taste like the order..."); }
+        }
+
+        function updateRecipeCollectionUI() {
+            recipeListContainer.innerHTML = "";
+            ALL_RECIPES.forEach(r => {
+                const div = document.createElement('div'); div.className = "recipe-entry";
+                if (r.unlocked) div.innerHTML = `<span class="recipe-name">${r.name}</span><span class="recipe-ingredients">${r.base}, ${r.adds.join(", ")}</span>`;
+                else div.innerHTML = `<span class="recipe-name locked">??????</span><span class="recipe-ingredients locked">Locked</span>`;
+                recipeListContainer.appendChild(div);
+            });
+        }
+
+        function toggleRecipeModal() {
+            if (!hasRecipeBook) return;
+            isRecipeModalOpen = !isRecipeModalOpen; recipeModal.style.display = isRecipeModalOpen ? 'block' : 'none';
+            if(isRecipeModalOpen) document.exitPointerLock(); else document.body.requestPointerLock();
+        }
+
+        function updateTaskList(step) {
+            const task1 = document.getElementById('task-1'); const task2 = document.getElementById('task-2');
+            if (step === 1) { 
+                task1.querySelector('.task-checkbox').classList.add('task-checked'); task1.style.textDecoration = "line-through"; task1.style.opacity = 0.5;
+                task2.style.opacity = 1.0; task2.innerHTML = `<span class="task-checkbox"></span>Complete Order`;
+                generateRecipe();
+            } else if (step === 2) { 
+                task2.querySelector('.task-checkbox').classList.add('task-checked'); task2.style.textDecoration = "line-through"; setTimeout(() => { taskList.style.opacity = 0; }, 2000);
+            }
+        }
+
+        function getLookingAt() {
+            raycaster.setFromCamera(center, camera);
+            const hits = raycaster.intersectObjects(interactables, true);
+            if (hits.length > 0) {
+                let obj = hits[0].object; while(obj.parent && !obj.userData.type && obj.parent !== scene) obj = obj.parent;
+                if (obj.userData.type && hits[0].distance < INTERACTION_DISTANCE) return { type: 'item', obj: obj, dist: hits[0].distance };
+            }
+            const envHits = raycaster.intersectObjects(environmentGroup.children, true);
+            if (envHits.length > 0) {
+                for (let i = 0; i < envHits.length; i++) {
+                    const hit = envHits[i];
+                    if (hit.distance > INTERACTION_DISTANCE) break;
+                    if (hit.face && hit.face.normal && hit.face.normal.y > 0.8) return { type: 'surface', point: hit.point, dist: hit.distance };
+                }
+            }
+            return null;
+        }
+
+        function handleInteractionKey() {
+            if (isAnimatingAction) return;
+            const target = getLookingAt();
+            if (heldItem) {
+                if (target && target.type === 'surface') { dropItem(target.point); playSound(100, 50, 0.1); } 
+                else if (target && target.type === 'item') {
+                    const tType = target.obj.userData.type; const hType = heldItem.userData.type;
+                    if (hType === 'ingredient' && tType === 'cup') mixIngredient(target.obj, heldItem);
+                    else if (hType === 'cup' && tType === 'slop_bucket') emptyCup(heldItem);
+                    else if (hType === 'cup' && tType === 'microwave') useMicrowave(target.obj, heldItem);
+                    else showMessage("Can't combine these.");
+                } 
+                else showMessage("Can't place here.");
+            } else {
+                if (target && target.type === 'item') {
+                    if (target.obj.userData.type === "recipe_book") {
+                        if(!hasRecipeBook) { hasRecipeBook=true; currentOrderCard.style.display='block'; recipeBtn.style.display='block'; updateTaskList(1); showMessage("Recipe List acquired! Press R."); target.obj.visible=false; playSound(300, 600, 0.1); }
+                    } else if (target.obj.userData.type === "microwave") { activateMicrowave(target.obj); }
+                    else if (target.obj.userData.isStatic) showMessage("That stays there.");
+                    else { pickUpItem(target.obj); playSound(200, 400, 0.1); }
+                }
+            }
+        }
+
+        function useMicrowave(microwave, cup) {
+            if (microwave.userData.cup) { showMessage("Microwave is full."); return; }
+            if (cup.userData.isEmpty) { showMessage("Cup is empty."); return; }
+            camera.remove(cup); microwave.add(cup); cup.position.set(0, 0, 0); cup.scale.set(0.5, 0.5, 0.5); 
+            microwave.userData.cup = cup; heldItem = null; showMessage("Put cup in microwave.");
+        }
+
+        function activateMicrowave(microwave) {
+            if (!microwave.userData.cup) { showMessage("Microwave is empty."); return; }
+            if (microwave.userData.isRunning) return;
+            const cup = microwave.userData.cup; const ings = cup.userData.ingredients;
+            let hasMilk = false; let hasCocoa = false;
+            ings.forEach(i => { if (i.includes("Milk")) hasMilk = true; if (i.includes("Cocoa")) hasCocoa = true; });
+            isAnimatingAction = true; microwave.userData.isRunning = true; microwave.userData.light.intensity = 1.0; 
+            playSound(100, 100, 2.0, 'square'); showMessage("Microwaving...");
+            setTimeout(() => {
+                microwave.userData.light.intensity = 0; microwave.userData.isRunning = false; isAnimatingAction = false;
+                playSound(600, 800, 0.5, 'sine'); showMessage("Done! (Press E to retrieve)");
+                if (hasMilk && hasCocoa) {
+                    cup.userData.flavor = "Hot Cocoa"; cup.userData.ingredients = ["Hot Cocoa"]; 
+                    cup.userData.liquidMesh.material.color.setHex(0x553311);
+                } else cup.userData.flavor = "Warm " + cup.userData.flavor;
+                microwave.remove(cup); cup.scale.set(1,1,1); pickUpItem(cup); 
+            }, 2000);
+        }
+
+        function onMouseDown() {
+            if (!document.pointerLockElement || isAnimatingAction) return;
+            if (heldItem) {
+                if (heldItem.userData.type === 'pot') {
+                    const target = getLookingAt();
+                    if (target && target.type === 'item' && target.obj.userData.type === 'cup') pourTea(heldItem, target.obj);
+                    else pourTea(heldItem, null);
+                } else if (heldItem.userData.type === 'cup') sipTea(heldItem);
+            }
+        }
+
+        function pickUpItem(obj) {
+            heldItem = obj; const index = interactables.indexOf(obj);
+            if (index > -1) interactables.splice(index, 1);
+            camera.add(obj); obj.position.set(0.4, -0.3, -0.6); obj.rotation.set(0, -0.5, 0);
+            showMessage(`Picked up ${obj.userData.name || obj.userData.type}`);
+        }
+
+        function dropItem(point) {
+            if (!heldItem) return;
+            camera.remove(heldItem); scene.add(heldItem); heldItem.position.copy(point); heldItem.rotation.set(0, Math.random() * Math.PI, 0);
+            interactables.push(heldItem); heldItem = null;
+        }
+
+        function emptyCup(cup) {
+            if(cup.userData.isEmpty) { showMessage("It's empty."); return; }
+            playSound(300, 100, 0.3, 'noise');
+            cup.userData.isEmpty = true; cup.userData.ingredients = []; cup.userData.flavor = "Empty";
+            cup.userData.liquidGroup.visible = false; cup.userData.liquidGroup.scale.y = 0;
+            showMessage("Cup emptied.");
+        }
+
+        function mixIngredient(cup, ingredient) {
+            if (!cup.userData.liquidGroup.visible) { showMessage("Pour hot water first!"); return; }
+            isAnimatingAction = true;
+            const origRotX = ingredient.rotation.x;
+            tweenProperty(ingredient.rotation, 'x', origRotX + 1.0, 400, () => {
+                tweenProperty(ingredient.rotation, 'x', origRotX, 400, () => { isAnimatingAction = false; });
+            });
+            playSound(600, 800, 0.5, 'square');
+            const ingName = ingredient.userData.name;
+            const isBase = ["Earl Grey", "Coffee", "Matcha"].includes(ingName);
+            if (isBase) {
+                 tweenColor(cup.userData.liquidMesh.material, ingredient.userData.color, 1000);
+                 cup.userData.liquidMesh.material.transparent = false; cup.userData.liquidMesh.material.opacity = 1.0;
+            } else {
+                const c1 = cup.userData.liquidMesh.material.color; const c2 = new THREE.Color(ingredient.userData.color);
+                const newColor = c1.lerp(c2, 0.2).getHex();
+                tweenColor(cup.userData.liquidMesh.material, newColor, 1000);
+            }
+            cup.userData.ingredients.push(ingName); showMessage(`Added ${ingName}.`);
+        }
+
+        function pourTea(pot, cup) {
+            isAnimatingAction = true; playSound(300, 200, 2.5, 'triangle');
+            const origRotX = pot.rotation.x; tweenProperty(pot.rotation, 'x', origRotX + 0.8, 500);
+            pot.userData.stream.visible = true;
+            if (cup && cup.userData.isEmpty) {
+                cup.userData.isEmpty = false; cup.userData.liquidGroup.visible = true;
+                cup.userData.liquidMesh.material.color.setHex(0x88ccff); cup.userData.liquidMesh.material.transparent = true; cup.userData.liquidMesh.material.opacity = 0.6;
+                cup.userData.ingredients = ["Hot Water"];
+                tweenProperty(cup.userData.liquidGroup.scale, 'y', 1, 2500); showMessage("Pouring hot water...");
+            } else if (cup) showMessage("Already full.");
+            else showMessage("Spilling water!");
+            setTimeout(() => {
+                tweenProperty(pot.rotation, 'x', origRotX, 500, () => { isAnimatingAction = false; });
+                pot.userData.stream.visible = false;
+            }, 2500);
+        }
+
+        function sipTea(cup) {
+            if (!cup.userData.isEmpty) {
+                isAnimatingAction = true;
+                const startPos = { x: 0.4, y: -0.3, z: -0.6 }; const endPos = { x: 0, y: -0.2, z: -0.35 }; const startRotX = cup.rotation.x;
+                tweenProperty(cup.position, 'x', endPos.x, 500); tweenProperty(cup.position, 'y', endPos.y, 500);
+                tweenProperty(cup.position, 'z', endPos.z, 500, () => {
+                    tweenProperty(cup.rotation, 'x', startRotX + 1.2, 500, () => {
+                        playSound(400, 500, 0.5); checkRecipe(cup.userData.ingredients);
+                        tweenProperty(cup.userData.liquidGroup.scale, 'y', 0, 500, () => {
+                            cup.userData.isEmpty = true; cup.userData.liquidGroup.visible = false; cup.userData.ingredients = [];
+                            tweenProperty(cup.rotation, 'x', startRotX, 500);
+                            tweenProperty(cup.position, 'x', startPos.x, 500); tweenProperty(cup.position, 'y', startPos.y, 500); tweenProperty(cup.position, 'z', startPos.z, 500, () => { isAnimatingAction = false; });
+                        });
+                    });
+                });
+            } else showMessage("Empty.");
+        }
+
+        // --- Engine Utils ---
+        function tweenProperty(o,p,t,d,c) { activeTweens.push({obj:o,prop:p,start:o[p],target:t,startTime:performance.now(),duration:d,onComplete:c}); }
+        function tweenColor(m,t,d) { activeTweens.push({isColor:true,material:m,startColor:m.color.clone(),targetColor:new THREE.Color(t),startTime:performance.now(),duration:d}); }
+        function updateTweens(time) {
+            for(let i=activeTweens.length-1;i>=0;i--){
+                const t=activeTweens[i], e=time-t.startTime, p=Math.min(e/t.duration,1), ep=1-(1-p)*(1-p);
+                if(t.isColor) t.material.color.lerpColors(t.startColor,t.targetColor,ep); else t.obj[t.prop]=t.start*(1-ep)+t.target*ep;
+                if(p>=1){ if(t.onComplete)t.onComplete(); activeTweens.splice(i,1); }
+            }
+        }
+        function showMessage(t){ messageLog.innerText=t; messageLog.style.opacity=1; clearTimeout(messageLog.timeout); messageLog.timeout=setTimeout(()=>{messageLog.style.opacity=0;},3000); }
+        function playSound(f1,f2,d,t='sine'){ if(!audioCtx)return; const o=audioCtx.createOscillator(),g=audioCtx.createGain(); o.type=t; o.frequency.setValueAtTime(f1,audioCtx.currentTime); o.frequency.linearRampToValueAtTime(f2,audioCtx.currentTime+d); g.gain.setValueAtTime(0.1,audioCtx.currentTime); g.gain.linearRampToValueAtTime(0,audioCtx.currentTime+d); o.connect(g); g.connect(audioCtx.destination); o.start(); o.stop(audioCtx.currentTime+d); }
+        function onWindowResize(){ camera.aspect=window.innerWidth/window.innerHeight; camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth,window.innerHeight); }
+        function checkCollisions(n){ const b=new THREE.Box3(),s=0.4; b.min.set(n.x-s,0,n.z-s); b.max.set(n.x+s,3,n.z+s); for(let o of collidableObjects)if(b.intersectsBox(o.box))return true; return false; }
+        
+        function animate(){
+            requestAnimationFrame(animate);
+            const time=performance.now(), delta=(time-prevTime)/1000; prevTime=time;
+            updateTweens(time);
+            if(document.pointerLockElement===document.body){
+                velocity.y -= GRAVITY*delta;
+                const spd = isSprinting?SPRINT_SPEED:WALK_SPEED;
+                velocity.x -= velocity.x*10.0*delta; velocity.z -= velocity.z*10.0*delta;
+                direction.z = Number(moveForward)-Number(moveBackward); direction.x = Number(moveLeft)-Number(moveRight); direction.normalize();
+                if(moveForward||moveBackward) velocity.z -= direction.z*spd*8.0*delta; if(moveLeft||moveRight) velocity.x -= direction.x*spd*8.0*delta;
+                const f=new THREE.Vector3(0,0,-1).applyQuaternion(camera.quaternion); f.y=0; f.normalize();
+                const r=new THREE.Vector3(1,0,0).applyQuaternion(camera.quaternion); r.y=0; r.normalize();
+                const mv=new THREE.Vector3(); mv.addScaledVector(f,-velocity.z*delta); mv.addScaledVector(r,velocity.x*delta);
+                let np=camera.position.clone(); np.x+=mv.x; if(!checkCollisions(np)) camera.position.x+=mv.x;
+                np=camera.position.clone(); np.z+=mv.z; if(!checkCollisions(np)) camera.position.z+=mv.z;
+                camera.position.y+=velocity.y*delta;
+                if(camera.position.y<PLAYER_HEIGHT){ velocity.y=0; camera.position.y=PLAYER_HEIGHT; canJump=true; }
+            }
+            const t=getLookingAt();
+            if(heldItem){
+                interactionPrompt.style.opacity=1;
+                if(t&&t.type==='surface') interactionPrompt.innerText=`[E] Place ${heldItem.userData.type}`;
+                else if(t&&t.type==='item'){
+                    const h=heldItem.userData.type, tt=t.obj.userData.type;
+                    if(h==='ingredient'&&tt==='cup') interactionPrompt.innerText=`[E] Mix`;
+                    else if(h==='cup'&&tt==='slop_bucket') interactionPrompt.innerText=`[E] Empty Cup`;
+                    else if(h==='cup'&&tt==='microwave') interactionPrompt.innerText=`[E] Put in Microwave`;
+                    else interactionPrompt.innerText=`Holding ${h}`;
+                } else if(heldItem.userData.type==='cup') interactionPrompt.innerText=`[Click] Sip`;
+                else if(heldItem.userData.type==='pot') interactionPrompt.innerText=`[Click] Pour`;
+                else interactionPrompt.innerText=`Holding ${heldItem.userData.type}`;
+            } else {
+                if(t&&t.type==='item'){ 
+                    if(t.obj.userData.isStatic) {
+                        if(t.obj.userData.type === 'microwave') interactionPrompt.innerText = `[E] Microwave`;
+                        else interactionPrompt.innerText = `${t.obj.userData.name}`;
+                    }
+                    else interactionPrompt.innerText=`[E] Pick up ${t.obj.userData.name||t.obj.userData.type}`; 
+                    interactionPrompt.style.opacity=1; 
+                }
+                else interactionPrompt.style.opacity=0;
+            }
+            renderer.render(scene, camera);
+        }
+        camera.position.set(0,PLAYER_HEIGHT,10);
+    </script>
+</body>
+</html>
