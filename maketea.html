@@ -5,15 +5,18 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>The Quiet Tea Shop</title>
     <style>
-        body {
+        /* REPAIR: Added html to selector and height: 100% to fix sizing collapse */
+        html, body {
+            height: 100%;
             margin: 0;
+            padding: 0;
             overflow: hidden;
             font-family: 'Courier New', Courier, monospace;
             background-color: #1a1a1a;
         }
         #canvas-container {
-            width: 100vw;
-            height: 100vh;
+            width: 100%; /* Changed to % to utilize the new parent height structure */
+            height: 100%;
             display: block;
         }
         #ui-layer {
@@ -536,8 +539,75 @@
             return new THREE.CanvasTexture(canvas);
         }
 
+        // New texture generator for the requested painting
+        function createFlowerPaintingTexture() {
+            const canvas = document.createElement('canvas'); canvas.width = 512; canvas.height = 340; 
+            const ctx = canvas.getContext('2d');
+            
+            // Canvas/Paper Background
+            ctx.fillStyle = '#f5e6d3'; 
+            ctx.fillRect(0, 0, 512, 340);
+            
+            // Abstract background strokes (Oil paint effect)
+            for(let i=0; i<150; i++) {
+                ctx.fillStyle = `rgba(${180+Math.random()*50}, ${160+Math.random()*50}, ${130+Math.random()*50}, 0.3)`;
+                ctx.fillRect(Math.random()*512, Math.random()*340, 20 + Math.random()*50, 20 + Math.random()*30);
+            }
+
+            // Green Stems/Leaves
+            ctx.strokeStyle = '#2d5a27';
+            ctx.lineCap = 'round';
+            for(let i=0; i<12; i++) {
+                ctx.lineWidth = 3 + Math.random() * 4;
+                ctx.beginPath();
+                const startX = 100 + Math.random() * 312;
+                const startY = 340;
+                ctx.moveTo(startX, startY);
+                // Random organic curve
+                ctx.quadraticCurveTo(
+                    startX + (Math.random()-0.5)*150, 
+                    startY - 150, 
+                    startX + (Math.random()-0.5)*250, 
+                    50 + Math.random()*150
+                );
+                ctx.stroke();
+            }
+
+            // Flowers (Impressionist blobs)
+            const colors = ['#e63946', '#ffb703', '#fb8500', '#9d4edd', '#ff006e'];
+            for(let i=0; i<25; i++) {
+                ctx.fillStyle = colors[Math.floor(Math.random()*colors.length)];
+                const cx = 50 + Math.random() * 412;
+                const cy = 50 + Math.random() * 250;
+                const r = 10 + Math.random() * 25;
+                
+                // Draw flower as collection of circles for texture
+                for(let j=0; j<5; j++) {
+                    ctx.beginPath();
+                    ctx.arc(cx + (Math.random()-0.5)*r, cy + (Math.random()-0.5)*r, r*0.6, 0, Math.PI*2);
+                    ctx.fill();
+                }
+                
+                // Highlight
+                ctx.fillStyle = 'rgba(255,255,255,0.3)';
+                ctx.beginPath();
+                ctx.arc(cx - r/3, cy - r/3, r/3, 0, Math.PI*2);
+                ctx.fill();
+            }
+            
+            // Simple frame border on the texture itself
+            ctx.strokeStyle = '#4a3b2a';
+            ctx.lineWidth = 20;
+            ctx.strokeRect(0,0,512,340);
+
+            const tex = new THREE.CanvasTexture(canvas);
+            return tex;
+        }
+
         function buildRoom() {
-            const floor = new THREE.Mesh(new THREE.PlaneGeometry(30, 30)); applyStyle(floor, 0x888888, false, createWoodTexture()); floor.rotation.x = -Math.PI / 2; environmentGroup.add(floor); 
+            const floor = new THREE.Mesh(new THREE.PlaneGeometry(30, 30)); applyStyle(floor, 0x888888, false, createWoodTexture()); floor.rotation.x = -Math.PI / 2; 
+            floor.position.y = 0.01; // Lift slightly to prevent Z-fighting
+            environmentGroup.add(floor); 
             const bambooTex = createBambooTexture(); bambooTex.repeat.set(2, 1);
             const roomGeo = new THREE.BoxGeometry(30, 10, 30);
             const wallMat = new THREE.MeshToonMaterial({color: 0xffffff, map: bambooTex, side: THREE.BackSide});
@@ -549,9 +619,17 @@
             const ceiling = new THREE.Mesh(new THREE.PlaneGeometry(30, 30), ceilingMat);
             ceiling.rotation.x = Math.PI/2; ceiling.position.y = 10; environmentGroup.add(ceiling);
 
+            // -- Painting Update --
             const winGeo = new THREE.PlaneGeometry(6, 4);
-            const winMat = new THREE.MeshBasicMaterial({ color: 0xaaddff });
-            const win1 = new THREE.Mesh(winGeo, winMat); win1.position.set(-14.9, 3, 0); win1.rotation.y = Math.PI / 2; scene.add(win1);
+            // Replaced solid color with generated painting texture
+            const winMat = new THREE.MeshBasicMaterial({ map: createFlowerPaintingTexture() });
+            const win1 = new THREE.Mesh(winGeo, winMat); 
+            
+            // Adjusted position from -14.9 to -14.88 to fix flickering against the frame behind it
+            win1.position.set(-14.88, 3, 0); 
+            win1.rotation.y = Math.PI / 2; 
+            scene.add(win1);
+            
             const frame = new THREE.Mesh(new THREE.BoxGeometry(0.2, 4, 6)); applyStyle(frame, 0x3d2817); frame.position.set(-15, 3, 0); environmentGroup.add(frame);
         }
 
@@ -716,11 +794,18 @@
 
         function checkRecipe(cupContents) {
             if (!currentRecipe || !hasRecipeBook) return;
-            const normalizedCup = cupContents.map(i => {
+            
+            // REPAIR: Filter out "Hot Water" so it doesn't break the exact count check
+            const meaningfulIngredients = cupContents.filter(i => i !== "Hot Water");
+
+            const normalizedCup = meaningfulIngredients.map(i => {
                 if(i.includes("Matcha")) return "Matcha"; if(i.includes("Coffee")) return "Coffee"; if(i.includes("Earl")) return "Earl Grey"; return i;
             });
+            
             const hasBase = normalizedCup.includes(currentRecipe.base);
             const hasAllAdds = currentRecipe.adds.every(add => normalizedCup.includes(add));
+            
+            // Now checking the length of meaningful ingredients only
             const countMatch = normalizedCup.length === (1 + currentRecipe.adds.length);
 
             if (hasBase && hasAllAdds && countMatch) {
