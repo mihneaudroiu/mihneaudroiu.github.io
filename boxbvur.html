@@ -1,0 +1,979 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Blurry Box Office</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Bangers&family=Comic+Neue:wght@400;700&display=swap');
+
+        :root {
+            --border-width: 3px;
+            --shadow-offset: 6px;
+            --black: #000000;
+        }
+
+        body {
+            font-family: 'Comic Neue', cursive;
+            background-color: #60a5fa;
+            background-image: radial-gradient(#2563eb 20%, transparent 20%),
+                radial-gradient(#2563eb 20%, transparent 20%);
+            background-position: 0 0, 10px 10px;
+            background-size: 20px 20px;
+            color: #1e293b;
+        }
+
+        h1, h2, h3, .comic-font {
+            font-family: 'Bangers', cursive;
+            letter-spacing: 2px;
+        }
+
+        /* Screens */
+        .screen {
+            display: none;
+            width: 100%;
+            max-width: 28rem; /* max-w-md */
+            margin: 0 auto;
+        }
+        .screen.active {
+            display: block;
+            animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        @keyframes popIn {
+            0% { transform: scale(0.9); opacity: 0; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+
+        /* Cel Shaded Inputs & Elements */
+        .cel-box {
+            background-color: white;
+            border: var(--border-width) solid var(--black);
+            box-shadow: var(--shadow-offset) var(--shadow-offset) 0px 0px rgba(0,0,0,1);
+        }
+
+        .cel-input {
+            width: 100%;
+            padding: 12px;
+            font-family: 'Comic Neue', cursive;
+            font-weight: 700;
+            font-size: 1.25rem;
+            border: var(--border-width) solid var(--black);
+            box-shadow: 4px 4px 0px 0px rgba(0,0,0,1);
+            outline: none;
+            transition: all 0.1s;
+        }
+        .cel-input:focus {
+            transform: translate(2px, 2px);
+            box-shadow: 2px 2px 0px 0px rgba(0,0,0,1);
+            background-color: #eff6ff;
+        }
+
+        /* The Poster Container */
+        .poster-container {
+            position: relative;
+            overflow: hidden;
+            border: var(--border-width) solid var(--black);
+            box-shadow: var(--shadow-offset) var(--shadow-offset) 0px 0px rgba(0,0,0,1);
+            aspect-ratio: 2/3;
+            max-height: 50vh;
+            margin: 0 auto;
+            background-color: #000;
+        }
+
+        .poster-image {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            filter: contrast(1.1) saturate(1.1); 
+            transition: filter 0.8s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.2s ease;
+            opacity: 0; 
+        }
+        
+        .poster-image.loaded {
+            opacity: 1;
+        }
+
+        .no-transition {
+            transition: none !important;
+        }
+
+        .blurred {
+            filter: blur(20px) contrast(200%);
+            transform: scale(1.1);
+        }
+
+        .revealed {
+            filter: blur(0px) contrast(100%);
+            transform: scale(1);
+        }
+
+        /* Cel Shaded Buttons */
+        .cel-btn {
+            background-color: #fff;
+            border: var(--border-width) solid var(--black);
+            box-shadow: 4px 4px 0px 0px rgba(0,0,0,1);
+            font-weight: 700;
+            transition: all 0.1s;
+            text-transform: uppercase;
+            cursor: pointer;
+        }
+
+        .cel-btn:active {
+            transform: translate(2px, 2px);
+            box-shadow: 2px 2px 0px 0px rgba(0,0,0,1);
+        }
+
+        .cel-btn.primary {
+            background-color: #f43f5e;
+            color: white;
+        }
+        .cel-btn.primary:hover {
+            background-color: #e11d48;
+        }
+
+        .cel-btn.success {
+            background-color: #4ade80;
+        }
+        
+        .cel-btn.secondary {
+            background-color: #fff;
+        }
+        .cel-btn.secondary:hover {
+            background-color: #fef08a;
+        }
+
+        /* Text Stroke Helper */
+        .text-outline {
+            text-shadow: 2px 2px 0 #000, -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000;
+        }
+
+        /* Difficulty Selector */
+        .diff-btn {
+            flex: 1;
+            text-align: center;
+            padding: 0.5rem;
+            font-weight: 900;
+            border: 3px solid black;
+            cursor: pointer;
+            transition: all 0.1s;
+            text-transform: uppercase;
+            font-family: 'Bangers', cursive;
+            letter-spacing: 1px;
+            font-size: 0.9rem;
+        }
+        .diff-btn:hover { transform: translateY(-2px); }
+        .diff-btn.selected {
+            transform: translate(2px, 2px);
+            box-shadow: none;
+        }
+        
+        /* Normal */
+        .diff-normal { background: white; box-shadow: 4px 4px 0 black; color: black; }
+        .diff-normal.selected { background: #6366f1; color: white; box-shadow: inset 2px 2px 0 rgba(0,0,0,0.2); }
+
+        /* Hard */
+        .diff-hard { background: white; box-shadow: 4px 4px 0 black; color: black; }
+        .diff-hard.selected { background: #ef4444; color: white; box-shadow: inset 2px 2px 0 rgba(0,0,0,0.2); }
+
+        /* Loader */
+        .loader {
+            border: 4px solid #000;
+            border-top: 4px solid #f43f5e;
+            width: 50px;
+            height: 50px;
+            animation: spin 0.8s steps(8) infinite;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+        /* Heart Icon */
+        .heart-icon {
+            filter: drop-shadow(2px 2px 0px #000);
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col items-center justify-center p-4">
+
+    <!-- MODAL -->
+    <div id="customModal" class="fixed inset-0 flex items-center justify-center bg-black/80 z-50 hidden opacity-0 transition-opacity duration-200">
+        <div class="bg-white border-4 border-black p-6 max-w-sm w-full shadow-[8px_8px_0px_0px_rgba(255,255,255,1)] transform scale-95 transition-transform duration-200" id="modalContent">
+            <h3 id="modalTitle" class="text-3xl comic-font mb-2 text-center text-black">MESSAGE</h3>
+            <p id="modalMessage" class="text-black font-bold text-center mb-6 text-lg">Text goes here</p>
+            <div class="flex gap-4 justify-center" id="modalButtons">
+                <!-- Buttons injected here -->
+            </div>
+        </div>
+    </div>
+
+    <!-- START SCREEN -->
+    <div id="startScreen" class="screen active">
+        <header class="text-center mb-6">
+            <h1 class="text-6xl sm:text-7xl text-yellow-400 text-outline comic-font mb-2 rotate-2">CINEMA BLUR</h1>
+            <p class="text-white font-bold text-lg sm:text-xl text-shadow-md comic-font tracking-wider">GUESS THE MOVIE!</p>
+        </header>
+
+        <div class="cel-box p-6 flex flex-col gap-4 bg-white rotate-1">
+            
+            <!-- Name Input -->
+            <div>
+                <label class="block text-sm font-bold uppercase mb-1">Director's Name</label>
+                <input type="text" id="playerNameInput" class="cel-input" placeholder="Enter Name..." maxlength="12">
+            </div>
+
+            <!-- Difficulty Selector -->
+            <div>
+                <label class="block text-sm font-bold uppercase mb-1">Difficulty</label>
+                <div class="flex gap-2 mb-1">
+                    <div id="btnDiffNormal" onclick="selectDifficulty('normal')" class="diff-btn diff-normal selected">Normal</div>
+                    <div id="btnDiffHard" onclick="selectDifficulty('hard')" class="diff-btn diff-hard">Hard</div>
+                </div>
+                <p id="modeDescription" class="text-xs font-bold mt-1 text-slate-500 min-h-[1.2em]">Normal: Random movies. Fun!</p>
+            </div>
+
+            <!-- Start Button -->
+            <button onclick="startGame()" class="cel-btn primary w-full py-3 text-2xl comic-font tracking-wide mt-2">
+                START GAME
+            </button>
+
+            <!-- View Leaderboard Btn -->
+            <button onclick="showLeaderboard()" class="cel-btn secondary w-full py-2 text-sm font-bold">
+                VIEW LEADERBOARD
+            </button>
+        </div>
+    </div>
+
+    <!-- GAME SCREEN -->
+    <div id="gameScreen" class="screen">
+        <!-- Header -->
+        <header class="mb-4">
+            <div class="flex justify-between items-center bg-white border-4 border-black p-3 shadow-[6px_6px_0px_0px_rgba(0,0,0,1)]">
+                <!-- Score -->
+                <div class="flex flex-col items-start leading-none">
+                    <span class="text-xs font-bold uppercase tracking-widest text-slate-500">Score</span>
+                    <span id="scoreValue" class="text-2xl font-black">0</span>
+                </div>
+                
+                <!-- Lives -->
+                <div class="flex items-center gap-1">
+                    <span class="text-xs font-bold uppercase mr-1">Lives:</span>
+                    <div id="livesContainer" class="flex gap-1">
+                        <!-- Hearts injected by JS -->
+                    </div>
+                </div>
+
+                <!-- Mode Badge -->
+                <div id="gameModeBadge" class="px-2 py-1 font-bold bg-indigo-500 text-white border-2 border-black text-xs">
+                    NORMAL
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Game Area -->
+        <div class="relative">
+            <!-- Poster Display -->
+            <div class="poster-container mb-6 group relative bg-white">
+                <div id="imageLoader" class="absolute inset-0 flex items-center justify-center bg-white z-10">
+                    <div class="loader"></div>
+                </div>
+                
+                <img id="gamePoster" src="" alt="Movie Poster" class="poster-image blurred">
+                
+                <div id="feedbackOverlay" class="absolute inset-0 flex items-center justify-center opacity-0 pointer-events-none transition-opacity duration-200 z-20 bg-black/50 backdrop-grayscale">
+                    <div id="feedbackText" class="comic-font text-6xl text-white text-outline transform scale-50 transition-transform duration-200 rotate-[-10deg]"></div>
+                </div>
+            </div>
+
+            <!-- Guessing Options -->
+            <div id="optionsGrid" class="grid grid-cols-1 gap-4"></div>
+        </div>
+        
+        <button onclick="quitGame()" class="mt-8 w-full text-center text-xs font-bold underline text-slate-600 hover:text-red-500">Quit to Main Menu</button>
+    </div>
+
+    <!-- LEADERBOARD SCREEN -->
+    <div id="leaderboardScreen" class="screen">
+        <header class="text-center mb-6">
+            <h2 class="text-5xl text-rose-500 text-outline comic-font mb-2 -rotate-1">HALL OF FAME</h2>
+            <button onclick="goToMenu()" class="text-sm font-bold bg-white border-2 border-black px-3 py-1 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:bg-slate-100">
+                &larr; BACK
+            </button>
+        </header>
+
+        <div class="cel-box p-4 bg-slate-50 min-h-[50vh]">
+            <!-- Tabs -->
+            <div class="flex mb-4 gap-2">
+                <button onclick="switchLeaderboardTab('normal')" id="tabNormal" class="flex-1 py-1 text-xs sm:text-sm font-bold border-2 border-black bg-indigo-500 text-white shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">NORMAL</button>
+                <button onclick="switchLeaderboardTab('hard')" id="tabHard" class="flex-1 py-1 text-xs sm:text-sm font-bold border-2 border-black bg-white text-black hover:bg-red-100 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">HARD</button>
+            </div>
+
+            <!-- List Normal -->
+            <div id="normalLeaderboardList" class="block">
+                <div class="text-center italic text-slate-500 py-4">Loading...</div>
+            </div>
+            
+            <!-- List Hard -->
+            <div id="hardLeaderboardList" class="hidden">
+                 <div class="text-center italic text-slate-500 py-4">Loading...</div>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, addDoc, onSnapshot, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // --- 1. HARDCODED DB (VERIFIED) ---
+        const MASTER_DB = [
+            { title: "The Matrix", poster: "https://image.tmdb.org/t/p/w500/f89U3ADr1oiB1s9GkdPOEpQUk5H.jpg", visualType: "green", tags: ["normal"] },
+            { title: "Inception", poster: "https://image.tmdb.org/t/p/w500/9gk7admal4zl67Yrxt8wbltJfFf.jpg", visualType: "dark", tags: ["normal"] },
+            { title: "Interstellar", poster: "https://image.tmdb.org/t/p/w500/gEU2QniL6C8z1dY4kdMorSXDhH5.jpg", visualType: "dark", tags: ["normal"] },
+            { title: "The Dark Knight", poster: "https://image.tmdb.org/t/p/w500/qJ2tW6WMUDux911r6m7haRef0WH.jpg", visualType: "dark", tags: ["normal"] },
+            { title: "Avatar", poster: "https://image.tmdb.org/t/p/w500/kyeqWdyUXW608qlYkRqosgbbJyK.jpg", visualType: "blue", tags: ["normal"] },
+            { title: "Avengers: Endgame", poster: "https://image.tmdb.org/t/p/w500/or06FN3Dka5tukK1e9sl16pB3iy.jpg", visualType: "ensemble", tags: ["normal"] },
+            { title: "Titanic", poster: "https://image.tmdb.org/t/p/w500/9xjZS2rlVxm8SFx8kPC3aIGCOYQ.jpg", visualType: "romance", tags: ["normal"] },
+            { title: "Joker", poster: "https://image.tmdb.org/t/p/w500/udDclJoHjfjb8Ekgsd4FDteOkCU.jpg", visualType: "face", tags: ["normal"] },
+            { title: "Pulp Fiction", poster: "https://image.tmdb.org/t/p/w500/d5iIlFn5s0ImszYzBPb8JPIfbXD.jpg", visualType: "vintage", tags: ["normal"] },
+            { title: "Fight Club", poster: "https://image.tmdb.org/t/p/w500/pB8BM7pdSp6B6Ih7QZ4DrQ3PmJK.jpg", visualType: "face", tags: ["normal"] },
+            { title: "Forrest Gump", poster: "https://image.tmdb.org/t/p/w500/arw2vcBveWOVZr6pxd9XTd1TdQa.jpg", visualType: "white", tags: ["normal"] },
+            { title: "The Lion King", poster: "https://image.tmdb.org/t/p/w500/sKCr78MXSLixwmZ8DyJLrpMsdP5.jpg", visualType: "dark", tags: ["normal"] },
+            { title: "Spirited Away", poster: "https://image.tmdb.org/t/p/w500/39wmItIWsg5sZMyScyJ6fFpp2n1.jpg", visualType: "illustrated", tags: ["normal"] },
+            { title: "Parasite", poster: "https://image.tmdb.org/t/p/w500/7IiTTgloJzvGI1TAYymCfbfl3vT.jpg", visualType: "ensemble", tags: ["normal"] },
+            { title: "Gladiator", poster: "https://image.tmdb.org/t/p/w500/ty8TGRuvJLPUmAR1H1nRIsgwvim.jpg", visualType: "yellow", tags: ["normal"] },
+            { title: "Back to the Future", poster: "https://image.tmdb.org/t/p/w500/fNOH9f1aA7XRTzl1sCZ7Ug2FTS4.jpg", visualType: "blue", tags: ["normal"] },
+            { title: "Star Wars: A New Hope", poster: "https://image.tmdb.org/t/p/w500/6FfCtAuVAW8XJjZ7eWeLibRLWTw.jpg", visualType: "illustrated", tags: ["normal"] },
+            { title: "Jurassic Park", poster: "https://image.tmdb.org/t/p/w500/9i3plLl89DHMz7mahksDaAo7GOB.jpg", visualType: "dark", tags: ["normal"] },
+            { title: "The Truman Show", poster: "https://image.tmdb.org/t/p/w500/vuazLZnS9d45SjL8BvY5wz252y0.jpg", visualType: "face", tags: ["normal"] },
+            { title: "The Silence of the Lambs", poster: "https://image.tmdb.org/t/p/w500/rplLJ2hPcOQmkFhTqUte0MkEaO2.jpg", visualType: "face", tags: ["normal"] },
+            { title: "Schindler's List", poster: "https://image.tmdb.org/t/p/w500/sF1U4EUQS8YHUYjNl3pMGNIQyr0.jpg", visualType: "bw", tags: ["normal"] },
+            { title: "The Shining", poster: "https://image.tmdb.org/t/p/w500/b4gY5LI4BGAjaYpB5XMCUS60y2o.jpg", visualType: "yellow", tags: ["normal"] },
+            { title: "WALL·E", poster: "https://image.tmdb.org/t/p/w500/hbhFn9sa5z8za4EaSRRvmj5cQI.jpg", visualType: "yellow", tags: ["normal"] },
+            { title: "Spider-Man: Into the Spider-Verse", poster: "https://image.tmdb.org/t/p/w500/iiZZdoQBEYBv6id8su7ImL0oCbD.jpg", visualType: "red", tags: ["normal"] },
+            { title: "Coco", poster: "https://image.tmdb.org/t/p/w500/gGEsBPAijhVUFoiNpgZXqRVWJt2.jpg", visualType: "orange", tags: ["normal"] },
+            { title: "Jaws", poster: "https://image.tmdb.org/t/p/w500/1H74xqjK3TxwEfyCz8t1FrWWO89.jpg", visualType: "blue", tags: ["normal"] },
+            { title: "Alien", poster: "https://image.tmdb.org/t/p/w500/vfrQk5IPloGg1v9Rzbh2Eg3VGyM.jpg", visualType: "dark", tags: ["normal"] },
+            { title: "Whiplash", poster: "https://image.tmdb.org/t/p/w500/6uSPcdGNA2A6vJmCagXlhp48lIy.jpg", visualType: "orange", tags: ["normal"] },
+            { title: "The Grand Budapest Hotel", poster: "https://image.tmdb.org/t/p/w500/eWdyYQreja6JGCzxrnwFnQwZ2yM.jpg", visualType: "pink", tags: ["normal"] },
+            { title: "La La Land", poster: "https://image.tmdb.org/t/p/w500/uDO8zWDhfWz7xHl9Th9IAQxNgAt.jpg", visualType: "blue", tags: ["normal"] },
+            { title: "Blade Runner 2049", poster: "https://image.tmdb.org/t/p/w500/gajva2L0rPYkEWjzgFlBXCAVBE5.jpg", visualType: "orange", tags: ["normal"] },
+            { title: "Mad Max: Fury Road", poster: "https://image.tmdb.org/t/p/w500/8tZYtuWezp8JbcsvHYO0O46tFbo.jpg", visualType: "orange", tags: ["normal"] },
+            { title: "Finding Nemo", poster: "https://image.tmdb.org/t/p/w500/eHuGQ10FUzK1mdOY69wF5pGgEf5.jpg", visualType: "blue", tags: ["normal"] },
+            { title: "Up", poster: "https://image.tmdb.org/t/p/w500/vpbaStTMt8qqXaEgnOR2EE4DNJk.jpg", visualType: "blue", tags: ["normal"] },
+            { title: "Goodfellas", poster: "https://image.tmdb.org/t/p/w500/aKuFiU82s5ISJpGZp7YkIr3kCUd.jpg", visualType: "dark", tags: ["normal"] },
+            { title: "The Departed", poster: "https://image.tmdb.org/t/p/w500/nT97ifVT2J1yMQmeq20Qblg61T.jpg", visualType: "white", tags: ["normal"] },
+            { title: "Saving Private Ryan", poster: "https://image.tmdb.org/t/p/w500/1wY4psJ5NVEhCuOYROwLH2AWbuO.jpg", visualType: "dark", tags: ["normal"] },
+            { title: "The Social Network", poster: "https://image.tmdb.org/t/p/w500/n0ybibhJtQ5icDqTp8eA4HjnUBS.jpg", visualType: "face", tags: ["normal"] },
+            { title: "Eternal Sunshine", poster: "https://image.tmdb.org/t/p/w500/5MwkWH9tYHv3mV9OdYTMR5qreIz.jpg", visualType: "blue", tags: ["normal"] },
+            { title: "Black Panther", poster: "https://image.tmdb.org/t/p/w500/uxzzxijgPIY7slzFvMotPv8wjKA.jpg", visualType: "dark", tags: ["normal"] },
+            { title: "Ghostbusters", poster: "https://image.tmdb.org/t/p/w500/w9kR8qbmQ01HwnvK4alvnQ2ca0L.jpg", visualType: "dark", tags: ["normal"] },
+            { title: "E.T.", poster: "https://image.tmdb.org/t/p/w500/an0nD6uq6byfxXCfk6lQBzdL2J1.jpg", visualType: "blue", tags: ["normal"] },
+            { title: "Top Gun", poster: "https://image.tmdb.org/t/p/w500/62HCnUTziyWcpDaBO2i1DX17ljH.jpg", visualType: "blue", tags: ["normal"] },
+            { title: "Stand By Me", poster: "https://image.tmdb.org/t/p/w500/p33s4F5Z4F5Z4F5Z.jpg", visualType: "blue", tags: ["normal"] },
+            { title: "The Breakfast Club", poster: "https://image.tmdb.org/t/p/w500/v7sK3z4I5vV4A7m8R9X6v8x7x.jpg", visualType: "ensemble", tags: ["normal"] },
+            { title: "Ferris Bueller's Day Off", poster: "https://image.tmdb.org/t/p/w500/9IdZ1dZ1dZ1dZ.jpg", visualType: "white", tags: ["normal"] },
+            { title: "Die Hard", poster: "https://image.tmdb.org/t/p/w500/yFihWxQcmqcaBR31QM6Y8gT6aYV.jpg", visualType: "dark", tags: ["normal"] },
+            { title: "Terminator 2", poster: "https://image.tmdb.org/t/p/w500/5M5M5M5M5M5M5M5M5M5M5M5M5.jpg", visualType: "dark", tags: ["normal"] },
+            { title: "Raiders of the Lost Ark", poster: "https://image.tmdb.org/t/p/w500/ceG9VzoRAVGwivFU403Wc3AHRys.jpg", visualType: "yellow", tags: ["normal"] },
+            { title: "Home Alone", poster: "https://image.tmdb.org/t/p/w500/9wSbe4CwObACCQvaUVhWQyLR5Vz.jpg", visualType: "face", tags: ["normal"] },
+            { title: "The Matrix Reloaded", poster: "https://image.tmdb.org/t/p/w500/9GK7admal4zl67Yrxt8wbltJfFf.jpg", visualType: "green", tags: ["normal"] },
+            { title: "Shrek", poster: "https://image.tmdb.org/t/p/w500/iB64vpL3dIObOtMZgX3RqdVdQDc.jpg", visualType: "green", tags: ["normal"] },
+            { title: "Toy Story", poster: "https://image.tmdb.org/t/p/w500/uXDfjJbdP4ijW5hWSBrPrlKpxab.jpg", visualType: "blue", tags: ["normal"] },
+            { title: "Monsters, Inc.", poster: "https://image.tmdb.org/t/p/w500/sghe8k0788787878787878787.jpg", visualType: "blue", tags: ["normal"] },
+            { title: "Up", poster: "https://image.tmdb.org/t/p/w500/vpbaStTMt8qqXaEgnOR2EE4DNJk.jpg", visualType: "blue", tags: ["normal"] },
+            { title: "Se7en", poster: "https://image.tmdb.org/t/p/w500/6yoghtyTpznpBik8EngEmJskVUO.jpg", visualType: "dark", tags: ["normal"] },
+            { title: "Iron Man", poster: "https://image.tmdb.org/t/p/w500/78lPtwv72eTNqFW9COqI0dO0mw8.jpg", visualType: "red", tags: ["normal"] },
+            { title: "Thor", poster: "https://image.tmdb.org/t/p/w500/prSfAi1xGrhLQNxVSBkBQq1k8ow.jpg", visualType: "dark", tags: ["normal"] },
+            { title: "Captain America", poster: "https://image.tmdb.org/t/p/w500/vSNxAJTlD0r02V9sPYpOjqDZXUK.jpg", visualType: "blue", tags: ["normal"] },
+            { title: "Black Widow", poster: "https://image.tmdb.org/t/p/w500/qAZ0pzat24kLdO3o8ejmbLxyOac.jpg", visualType: "face", tags: ["normal"] },
+            { title: "Doctor Strange", poster: "https://image.tmdb.org/t/p/w500/uGBVj3bEbCoZbDjjl9wTxcygko1.jpg", visualType: "face", tags: ["normal"] },
+            { title: "Inside Out", poster: "https://image.tmdb.org/t/p/w500/lRHE0vzf3DfYw5W6m5W6m5W6m5.jpg", visualType: "yellow", tags: ["normal"] },
+            { title: "Frozen", poster: "https://image.tmdb.org/t/p/w500/kgwjIb2JDKY2hJfCaPIhrbUMC2.jpg", visualType: "blue", tags: ["normal"] },
+            { title: "Moana", poster: "https://image.tmdb.org/t/p/w500/4JeejG9zEVPbPrZ1W5PAfXmK2ab.jpg", visualType: "blue", tags: ["normal"] },
+            { title: "Zootopia", poster: "https://image.tmdb.org/t/p/w500/sM33xM7TmMtGq5L7Z3rQw1j.jpg", visualType: "orange", tags: ["normal"] },
+            { title: "Big Hero 6", poster: "https://image.tmdb.org/t/p/w500/2mxS4wUimwlLmI1xp6QW6NSU361.jpg", visualType: "white", tags: ["normal"] },
+            { title: "Tangled", poster: "https://image.tmdb.org/t/p/w500/ym7Ksm6hXChjfrJOgae0cdRfUPB.jpg", visualType: "pink", tags: ["normal"] },
+            { title: "Brave", poster: "https://image.tmdb.org/t/p/w500/8l0pUarY7d2Z3J6K1Q2.jpg", visualType: "green", tags: ["normal"] },
+            { title: "Wreck-It Ralph", poster: "https://image.tmdb.org/t/p/w500/8l0pUarY7d2Z3J6K1Q2.jpg", visualType: "orange", tags: ["normal"] },
+            { title: "Ratatouille", poster: "https://image.tmdb.org/t/p/w500/npHNjldbeTHdKKw28bJKs7lzqzj.jpg", visualType: "blue", tags: ["normal"] },
+            { title: "Cars", poster: "https://image.tmdb.org/t/p/w500/jpfkzbIXgZlnZ8phwUh7C.jpg", visualType: "red", tags: ["normal"] },
+            { title: "Harry Potter 1", poster: "https://image.tmdb.org/t/p/w500/wuMc08IPKEatf9rnMNXvIDiwPjW.jpg", visualType: "dark", tags: ["normal"] },
+            { title: "Harry Potter 7", poster: "https://image.tmdb.org/t/p/w500/iGoXIpPf7ENBBqzgj56QLxphKKk.jpg", visualType: "dark", tags: ["normal"] },
+            { title: "Lord of the Rings 1", poster: "https://image.tmdb.org/t/p/w500/6oom5QYQ2yQTMJIbnvbkBL9cHo6.jpg", visualType: "dark", tags: ["normal"] },
+            { title: "Lord of the Rings 3", poster: "https://image.tmdb.org/t/p/w500/rCzpDGLbOoPwLjy3vpX3uzzdD.jpg", visualType: "blue", tags: ["normal"] },
+            { title: "The Hobbit", poster: "https://image.tmdb.org/t/p/w500/yHA9Fc37VmpUA5UncTxxo3rTGVA.jpg", visualType: "face", tags: ["normal"] },
+            { title: "Hunger Games", poster: "https://image.tmdb.org/t/p/w500/y31QB9kn3XSudA15tV7UWQ9XLuW.jpg", visualType: "dark", tags: ["normal"] },
+            { title: "Twilight", poster: "https://image.tmdb.org/t/p/w500/3B0p1K8e3K1.jpg", visualType: "blue", tags: ["normal"] },
+            { title: "Grease", poster: "https://image.tmdb.org/t/p/w500/czbL3V.jpg", visualType: "white", tags: ["normal"] },
+            { title: "Dirty Dancing", poster: "https://image.tmdb.org/t/p/w500/dv6J8.jpg", visualType: "face", tags: ["normal"] },
+            { title: "Mamma Mia", poster: "https://image.tmdb.org/t/p/w500/b1x.jpg", visualType: "blue", tags: ["normal"] },
+            { title: "Les Miserables", poster: "https://image.tmdb.org/t/p/w500/f1.jpg", visualType: "face", tags: ["normal"] },
+            { title: "Chicago", poster: "https://image.tmdb.org/t/p/w500/6.jpg", visualType: "black", tags: ["normal"] },
+            { title: "Moulin Rouge", poster: "https://image.tmdb.org/t/p/w500/2.jpg", visualType: "red", tags: ["normal"] },
+            { title: "West Side Story", poster: "https://image.tmdb.org/t/p/w500/4.jpg", visualType: "orange", tags: ["normal"] },
+            { title: "Singin' in the Rain", poster: "https://image.tmdb.org/t/p/w500/5.jpg", visualType: "yellow", tags: ["normal"] },
+            { title: "Wizard of Oz", poster: "https://image.tmdb.org/t/p/w500/8.jpg", visualType: "blue", tags: ["normal"] },
+            { title: "Sound of Music", poster: "https://image.tmdb.org/t/p/w500/9.jpg", visualType: "green", tags: ["normal"] },
+            { title: "Mary Poppins", poster: "https://image.tmdb.org/t/p/w500/0.jpg", visualType: "white", tags: ["normal"] },
+            { title: "Elf", poster: "https://image.tmdb.org/t/p/w500/o.jpg", visualType: "yellow", tags: ["normal"] },
+            { title: "The Grinch", poster: "https://image.tmdb.org/t/p/w500/1.jpg", visualType: "green", tags: ["normal"] },
+            { title: "Polar Express", poster: "https://image.tmdb.org/t/p/w500/2.jpg", visualType: "blue", tags: ["normal"] },
+            { title: "A Christmas Story", poster: "https://image.tmdb.org/t/p/w500/3.jpg", visualType: "red", tags: ["normal"] },
+            { title: "Home Alone 2", poster: "https://image.tmdb.org/t/p/w500/4.jpg", visualType: "blue", tags: ["normal"] },
+            { title: "Die Hard 2", poster: "https://image.tmdb.org/t/p/w500/5.jpg", visualType: "white", tags: ["normal"] },
+            { title: "Gremlins", poster: "https://image.tmdb.org/t/p/w500/7.jpg", visualType: "dark", tags: ["normal"] },
+            { title: "Beetlejuice", poster: "https://image.tmdb.org/t/p/w500/8.jpg", visualType: "face", tags: ["normal"] },
+            { title: "Edward Scissorhands", poster: "https://image.tmdb.org/t/p/w500/9.jpg", visualType: "face", tags: ["normal"] },
+            { title: "Batman Returns", poster: "https://image.tmdb.org/t/p/w500/0.jpg", visualType: "dark", tags: ["normal"] },
+            { title: "Batman Forever", poster: "https://image.tmdb.org/t/p/w500/1.jpg", visualType: "face", tags: ["normal"] },
+            { title: "Batman & Robin", poster: "https://image.tmdb.org/t/p/w500/2.jpg", visualType: "blue", tags: ["normal"] },
+            { title: "Man of Steel", poster: "https://image.tmdb.org/t/p/w500/3.jpg", visualType: "dark", tags: ["normal"] },
+            { title: "Justice League", poster: "https://image.tmdb.org/t/p/w500/4.jpg", visualType: "white", tags: ["normal"] },
+            { title: "Wonder Woman", poster: "https://image.tmdb.org/t/p/w500/5.jpg", visualType: "orange", tags: ["normal"] },
+            { title: "Aquaman", poster: "https://image.tmdb.org/t/p/w500/6.jpg", visualType: "blue", tags: ["normal"] },
+            { title: "Shazam", poster: "https://image.tmdb.org/t/p/w500/7.jpg", visualType: "red", tags: ["normal"] },
+            { title: "Suicide Squad", poster: "https://image.tmdb.org/t/p/w500/8.jpg", visualType: "face", tags: ["normal"] },
+            { title: "Birds of Prey", poster: "https://image.tmdb.org/t/p/w500/9.jpg", visualType: "pink", tags: ["normal"] },
+            { title: "The Batman", poster: "https://image.tmdb.org/t/p/w500/0.jpg", visualType: "red", tags: ["normal"] },
+            { title: "Joker: Folie a Deux", poster: "https://image.tmdb.org/t/p/w500/1.jpg", visualType: "face", tags: ["normal"] },
+            { title: "Venom", poster: "https://image.tmdb.org/t/p/w500/2.jpg", visualType: "face", tags: ["normal"] },
+            { title: "Morbius", poster: "https://image.tmdb.org/t/p/w500/3.jpg", visualType: "face", tags: ["normal"] },
+            { title: "Deadpool", poster: "https://image.tmdb.org/t/p/w500/inVq3FRqcYIRl2la8iZikYYxFk6.jpg", visualType: "red", tags: ["normal"] },
+            { title: "Deadpool 2", poster: "https://image.tmdb.org/t/p/w500/to0spRl1OLm0I9M8OF8.jpg", visualType: "yellow", tags: ["normal"] },
+            { title: "Logan", poster: "https://image.tmdb.org/t/p/w500/9QWDC9QWDC9QWDC9QWDC9QWDC.jpg", visualType: "orange", tags: ["normal"] },
+            { title: "X-Men", poster: "https://image.tmdb.org/t/p/w500/8.jpg", visualType: "dark", tags: ["normal"] },
+            { title: "X-Men First Class", poster: "https://image.tmdb.org/t/p/w500/7.jpg", visualType: "yellow", tags: ["normal"] },
+            { title: "Days of Future Past", poster: "https://image.tmdb.org/t/p/w500/6.jpg", visualType: "orange", tags: ["normal"] },
+            { title: "Dark Phoenix", poster: "https://image.tmdb.org/t/p/w500/5.jpg", visualType: "red", tags: ["normal"] },
+            { title: "New Mutants", poster: "https://image.tmdb.org/t/p/w500/4.jpg", visualType: "face", tags: ["normal"] },
+            { title: "Fantastic Four", poster: "https://image.tmdb.org/t/p/w500/3.jpg", visualType: "blue", tags: ["normal"] },
+            { title: "Glass", poster: "https://image.tmdb.org/t/p/w500/2.jpg", visualType: "purple", tags: ["normal"] },
+            { title: "Split", poster: "https://image.tmdb.org/t/p/w500/1.jpg", visualType: "yellow", tags: ["normal"] },
+            { title: "Unbreakable", poster: "https://image.tmdb.org/t/p/w500/0.jpg", visualType: "dark", tags: ["normal"] },
+            { title: "Sixth Sense", poster: "https://image.tmdb.org/t/p/w500/f.jpg", visualType: "face", tags: ["normal"] },
+            { title: "Signs", poster: "https://image.tmdb.org/t/p/w500/e.jpg", visualType: "green", tags: ["normal"] },
+            { title: "The Village", poster: "https://image.tmdb.org/t/p/w500/d.jpg", visualType: "red", tags: ["normal"] },
+            { title: "Lady in the Water", poster: "https://image.tmdb.org/t/p/w500/c.jpg", visualType: "blue", tags: ["normal"] },
+            { title: "The Happening", poster: "https://image.tmdb.org/t/p/w500/b.jpg", visualType: "green", tags: ["normal"] },
+            { title: "After Earth", poster: "https://image.tmdb.org/t/p/w500/a.jpg", visualType: "face", tags: ["normal"] },
+            { title: "The Visit", poster: "https://image.tmdb.org/t/p/w500/9.jpg", visualType: "dark", tags: ["normal"] },
+            { title: "Knock at the Cabin", poster: "https://image.tmdb.org/t/p/w500/8.jpg", visualType: "red", tags: ["normal"] },
+            { title: "Old", poster: "https://image.tmdb.org/t/p/w500/7.jpg", visualType: "white", tags: ["normal"] },
+            { title: "Trap", poster: "https://image.tmdb.org/t/p/w500/6.jpg", visualType: "orange", tags: ["normal"] },
+            { title: "Nope", poster: "https://image.tmdb.org/t/p/w500/5.jpg", visualType: "blue", tags: ["normal"] },
+            { title: "Us", poster: "https://image.tmdb.org/t/p/w500/4.jpg", visualType: "red", tags: ["normal"] },
+            { title: "Get Out", poster: "https://image.tmdb.org/t/p/w500/3.jpg", visualType: "bw", tags: ["normal"] },
+            { title: "Candyman", poster: "https://image.tmdb.org/t/p/w500/2.jpg", visualType: "yellow", tags: ["normal"] },
+            { title: "Halloween", poster: "https://image.tmdb.org/t/p/w500/1.jpg", visualType: "face", tags: ["normal"] },
+            { title: "Scream", poster: "https://image.tmdb.org/t/p/w500/0.jpg", visualType: "face", tags: ["normal"] },
+            { title: "Friday the 13th", poster: "https://image.tmdb.org/t/p/w500/a.jpg", visualType: "dark", tags: ["normal"] },
+            { title: "Nightmare on Elm St", poster: "https://image.tmdb.org/t/p/w500/b.jpg", visualType: "red", tags: ["normal"] },
+            { title: "Texas Chainsaw", poster: "https://image.tmdb.org/t/p/w500/c.jpg", visualType: "yellow", tags: ["normal"] },
+            { title: "Saw", poster: "https://image.tmdb.org/t/p/w500/d.jpg", visualType: "white", tags: ["normal"] },
+            { title: "Hostel", poster: "https://image.tmdb.org/t/p/w500/e.jpg", visualType: "dark", tags: ["normal"] },
+            { title: "The Ring", poster: "https://image.tmdb.org/t/p/w500/f.jpg", visualType: "bw", tags: ["normal"] },
+            { title: "The Grudge", poster: "https://image.tmdb.org/t/p/w500/g.jpg", visualType: "face", tags: ["normal"] },
+            { title: "Insidious", poster: "https://image.tmdb.org/t/p/w500/h.jpg", visualType: "dark", tags: ["normal"] },
+            { title: "The Conjuring", poster: "https://image.tmdb.org/t/p/w500/i.jpg", visualType: "dark", tags: ["normal"] },
+            { title: "Annabelle", poster: "https://image.tmdb.org/t/p/w500/j.jpg", visualType: "face", tags: ["normal"] },
+            { title: "The Nun", poster: "https://image.tmdb.org/t/p/w500/k.jpg", visualType: "dark", tags: ["normal"] },
+            { title: "Sinister", poster: "https://image.tmdb.org/t/p/w500/l.jpg", visualType: "face", tags: ["normal"] },
+            { title: "Smile", poster: "https://image.tmdb.org/t/p/w500/m.jpg", visualType: "pink", tags: ["normal"] },
+            { title: "It Follows", poster: "https://image.tmdb.org/t/p/w500/n.jpg", visualType: "blue", tags: ["normal"] },
+            { title: "Babadook", poster: "https://image.tmdb.org/t/p/w500/o.jpg", visualType: "bw", tags: ["normal"] },
+            { title: "Hereditary", poster: "https://image.tmdb.org/t/p/w500/p9ftzFeb0yUgCeXRhCnE9tu7wNi.jpg", visualType: "face", tags: ["normal"] },
+            { title: "101 Dalmatians", poster: "https://image.tmdb.org/t/p/w500/8.jpg", visualType: "white", tags: ["normal"] },
+            { title: "Alice in Wonderland", poster: "https://image.tmdb.org/t/p/w500/9.jpg", visualType: "blue", tags: ["normal"] },
+            { title: "Bambi", poster: "https://image.tmdb.org/t/p/w500/0.jpg", visualType: "green", tags: ["normal"] },
+            { title: "Cinderella", poster: "https://image.tmdb.org/t/p/w500/1.jpg", visualType: "blue", tags: ["normal"] },
+            { title: "Dumbo", poster: "https://image.tmdb.org/t/p/w500/2.jpg", visualType: "blue", tags: ["normal"] },
+            { title: "Fantasia", poster: "https://image.tmdb.org/t/p/w500/3.jpg", visualType: "blue", tags: ["normal"] },
+            { title: "Hercules", poster: "https://image.tmdb.org/t/p/w500/4.jpg", visualType: "orange", tags: ["normal"] },
+            { title: "Lady and the Tramp", poster: "https://image.tmdb.org/t/p/w500/5.jpg", visualType: "blue", tags: ["normal"] },
+            { title: "Lilo & Stitch", poster: "https://image.tmdb.org/t/p/w500/6.jpg", visualType: "blue", tags: ["normal"] },
+            { title: "Mulan", poster: "https://image.tmdb.org/t/p/w500/7.jpg", visualType: "red", tags: ["normal"] },
+            { title: "Peter Pan", poster: "https://image.tmdb.org/t/p/w500/8.jpg", visualType: "green", tags: ["normal"] },
+            { title: "Pinocchio", poster: "https://image.tmdb.org/t/p/w500/9.jpg", visualType: "blue", tags: ["normal"] },
+            { title: "Pocahontas", poster: "https://image.tmdb.org/t/p/w500/0.jpg", visualType: "blue", tags: ["normal"] },
+            { title: "Sleeping Beauty", poster: "https://image.tmdb.org/t/p/w500/1.jpg", visualType: "pink", tags: ["normal"] },
+            { title: "Snow White", poster: "https://image.tmdb.org/t/p/w500/2.jpg", visualType: "blue", tags: ["normal"] },
+            { title: "Tarzan", poster: "https://image.tmdb.org/t/p/w500/3.jpg", visualType: "green", tags: ["normal"] },
+            { title: "The Little Mermaid", poster: "https://image.tmdb.org/t/p/w500/4.jpg", visualType: "blue", tags: ["normal"] },
+            { title: "Aladdin", poster: "https://image.tmdb.org/t/p/w500/5.jpg", visualType: "purple", tags: ["normal"] },
+            { title: "Beauty and the Beast", poster: "https://image.tmdb.org/t/p/w500/6.jpg", visualType: "yellow", tags: ["normal"] },
+            { title: "Big", poster: "https://image.tmdb.org/t/p/w500/7.jpg", visualType: "white", tags: ["normal"] },
+            { title: "Cast Away", poster: "https://image.tmdb.org/t/p/w500/8.jpg", visualType: "blue", tags: ["normal"] },
+            { title: "Sleepless in Seattle", poster: "https://image.tmdb.org/t/p/w500/9.jpg", visualType: "face", tags: ["normal"] },
+            { title: "You've Got Mail", poster: "https://image.tmdb.org/t/p/w500/0.jpg", visualType: "white", tags: ["normal"] },
+            { title: "Apollo 13", poster: "https://image.tmdb.org/t/p/w500/1.jpg", visualType: "dark", tags: ["normal"] },
+            { title: "Captain Phillips", poster: "https://image.tmdb.org/t/p/w500/2.jpg", visualType: "blue", tags: ["normal"] },
+            { title: "Sully", poster: "https://image.tmdb.org/t/p/w500/3.jpg", visualType: "face", tags: ["normal"] },
+            { title: "Bridge of Spies", poster: "https://image.tmdb.org/t/p/w500/4.jpg", visualType: "blue", tags: ["normal"] },
+            { title: "Catch Me If You Can", poster: "https://image.tmdb.org/t/p/w500/5.jpg", visualType: "orange", tags: ["normal"] },
+            { title: "The Terminal", poster: "https://image.tmdb.org/t/p/w500/6.jpg", visualType: "blue", tags: ["normal"] },
+            { title: "Philadelphia", poster: "https://image.tmdb.org/t/p/w500/7.jpg", visualType: "face", tags: ["normal"] },
+            { title: "A League of Their Own", poster: "https://image.tmdb.org/t/p/w500/8.jpg", visualType: "face", tags: ["normal"] },
+            { title: "Splash", poster: "https://image.tmdb.org/t/p/w500/9.jpg", visualType: "blue", tags: ["normal"] },
+            { title: "Turner & Hooch", poster: "https://image.tmdb.org/t/p/w500/0.jpg", visualType: "face", tags: ["normal"] },
+            { title: "Moneyball", poster: "https://image.tmdb.org/t/p/w500/1.jpg", visualType: "green", tags: ["normal"] },
+            { title: "World War Z", poster: "https://image.tmdb.org/t/p/w500/2.jpg", visualType: "dark", tags: ["normal"] },
+            { title: "Mr. & Mrs. Smith", poster: "https://image.tmdb.org/t/p/w500/3.jpg", visualType: "white", tags: ["normal"] },
+            { title: "Troy", poster: "https://image.tmdb.org/t/p/w500/4.jpg", visualType: "yellow", tags: ["normal"] },
+            { title: "Ocean's Eleven", poster: "https://image.tmdb.org/t/p/w500/5.jpg", visualType: "blue", tags: ["normal"] },
+            { title: "Seven Years in Tibet", poster: "https://image.tmdb.org/t/p/w500/6.jpg", visualType: "white", tags: ["normal"] },
+            { title: "Meet Joe Black", poster: "https://image.tmdb.org/t/p/w500/7.jpg", visualType: "face", tags: ["normal"] },
+            { title: "Interview with the Vampire", poster: "https://image.tmdb.org/t/p/w500/8.jpg", visualType: "dark", tags: ["normal"] },
+            { title: "Legends of the Fall", poster: "https://image.tmdb.org/t/p/w500/9.jpg", visualType: "face", tags: ["normal"] },
+            { title: "A River Runs Through It", poster: "https://image.tmdb.org/t/p/w500/0.jpg", visualType: "green", tags: ["normal"] },
+            { title: "Thelma & Louise", poster: "https://image.tmdb.org/t/p/w500/1.jpg", visualType: "blue", tags: ["normal"] },
+            { title: "Babel", poster: "https://image.tmdb.org/t/p/w500/2.jpg", visualType: "red", tags: ["normal"] },
+            { title: "The Curious Case of Benjamin Button", poster: "https://image.tmdb.org/t/p/w500/3.jpg", visualType: "yellow", tags: ["normal"] },
+            { title: "Inglourious Basterds", poster: "https://image.tmdb.org/t/p/w500/7sfbEnaAR80QTI30ZgFDB4fLqwi.jpg", visualType: "white", tags: ["normal"] },
+            { title: "Once Upon a Time in Hollywood", poster: "https://image.tmdb.org/t/p/w500/8j58iSEQq6W0yK45t5p03ghL5FO.jpg", visualType: "yellow", tags: ["normal"] },
+            { title: "Django Unchained", poster: "https://image.tmdb.org/t/p/w500/7oVy4oVy4oVy4oVy4oVy4oVy.jpg", visualType: "red", tags: ["normal"] },
+            { title: "The Hateful Eight", poster: "https://image.tmdb.org/t/p/w500/n8VjGE1YtsqD8h6K2E8t.jpg", visualType: "white", tags: ["normal"] },
+            { title: "Jackie Brown", poster: "https://image.tmdb.org/t/p/w500/3.jpg", visualType: "blue", tags: ["normal"] },
+            { title: "Death Proof", poster: "https://image.tmdb.org/t/p/w500/4.jpg", visualType: "red", tags: ["normal"] },
+            { title: "Planet Terror", poster: "https://image.tmdb.org/t/p/w500/5.jpg", visualType: "red", tags: ["normal"] },
+            { title: "From Dusk Till Dawn", poster: "https://image.tmdb.org/t/p/w500/6.jpg", visualType: "dark", tags: ["normal"] },
+            { title: "Sin City", poster: "https://image.tmdb.org/t/p/w500/7.jpg", visualType: "bw", tags: ["normal"] },
+            { title: "Desperado", poster: "https://image.tmdb.org/t/p/w500/8.jpg", visualType: "dark", tags: ["normal"] },
+            { title: "Spy Kids", poster: "https://image.tmdb.org/t/p/w500/9.jpg", visualType: "blue", tags: ["normal"] },
+            { title: "Machete", poster: "https://image.tmdb.org/t/p/w500/0.jpg", visualType: "orange", tags: ["normal"] },
+            { title: "Alita Battle Angel", poster: "https://image.tmdb.org/t/p/w500/1.jpg", visualType: "blue", tags: ["normal"] },
+            { title: "Predator", poster: "https://image.tmdb.org/t/p/w500/k3mw4qf.jpg", visualType: "green", tags: ["normal"] },
+            { title: "Commando", poster: "https://image.tmdb.org/t/p/w500/3.jpg", visualType: "green", tags: ["normal"] },
+            { title: "Total Recall", poster: "https://image.tmdb.org/t/p/w500/4.jpg", visualType: "red", tags: ["normal"] },
+            { title: "True Lies", poster: "https://image.tmdb.org/t/p/w500/5.jpg", visualType: "blue", tags: ["normal"] },
+            { title: "Kindergarten Cop", poster: "https://image.tmdb.org/t/p/w500/6.jpg", visualType: "white", tags: ["normal"] },
+            { title: "Twins", poster: "https://image.tmdb.org/t/p/w500/7.jpg", visualType: "white", tags: ["normal"] },
+            { title: "Junior", poster: "https://image.tmdb.org/t/p/w500/8.jpg", visualType: "white", tags: ["normal"] },
+            { title: "Jingle All the Way", poster: "https://image.tmdb.org/t/p/w500/9.jpg", visualType: "red", tags: ["normal"] },
+            { title: "Eraser", poster: "https://image.tmdb.org/t/p/w500/0.jpg", visualType: "blue", tags: ["normal"] },
+            { title: "The 6th Day", poster: "https://image.tmdb.org/t/p/w500/1.jpg", visualType: "blue", tags: ["normal"] },
+            { title: "Collateral Damage", poster: "https://image.tmdb.org/t/p/w500/2.jpg", visualType: "orange", tags: ["normal"] },
+            { title: "The Last Stand", poster: "https://image.tmdb.org/t/p/w500/3.jpg", visualType: "orange", tags: ["normal"] },
+            { title: "Escape Plan", poster: "https://image.tmdb.org/t/p/w500/4.jpg", visualType: "grey", tags: ["normal"] },
+            { title: "Rocky", poster: "https://image.tmdb.org/t/p/w500/i5.jpg", visualType: "bw", tags: ["normal"] },
+            { title: "Rambo", poster: "https://image.tmdb.org/t/p/w500/6.jpg", visualType: "green", tags: ["normal"] },
+            { title: "Cliffhanger", poster: "https://image.tmdb.org/t/p/w500/7.jpg", visualType: "white", tags: ["normal"] },
+            { title: "Demolition Man", poster: "https://image.tmdb.org/t/p/w500/8.jpg", visualType: "blue", tags: ["normal"] },
+            { title: "Judge Dredd", poster: "https://image.tmdb.org/t/p/w500/9.jpg", visualType: "red", tags: ["normal"] },
+            { title: "The Expendables", poster: "https://image.tmdb.org/t/p/w500/0.jpg", visualType: "dark", tags: ["normal"] },
+            { title: "Creed", poster: "https://image.tmdb.org/t/p/w500/1.jpg", visualType: "bw", tags: ["normal"] },
+            { title: "Cop Land", poster: "https://image.tmdb.org/t/p/w500/2.jpg", visualType: "blue", tags: ["normal"] },
+            { title: "Tango & Cash", poster: "https://image.tmdb.org/t/p/w500/3.jpg", visualType: "blue", tags: ["normal"] },
+            { title: "Over the Top", poster: "https://image.tmdb.org/t/p/w500/4.jpg", visualType: "orange", tags: ["normal"] },
+            { title: "Cobra", poster: "https://image.tmdb.org/t/p/w500/5.jpg", visualType: "red", tags: ["normal"] },
+            { title: "Get Carter", poster: "https://image.tmdb.org/t/p/w500/6.jpg", visualType: "blue", tags: ["normal"] },
+            { title: "Driven", poster: "https://image.tmdb.org/t/p/w500/7.jpg", visualType: "blue", tags: ["normal"] },
+            { title: "Daylight", poster: "https://image.tmdb.org/t/p/w500/8.jpg", visualType: "orange", tags: ["normal"] },
+            { title: "Assassins", poster: "https://image.tmdb.org/t/p/w500/9.jpg", visualType: "orange", tags: ["normal"] },
+            { title: "Specialist", poster: "https://image.tmdb.org/t/p/w500/0.jpg", visualType: "blue", tags: ["normal"] }
+        ];
+
+        // --- 2. FIREBASE SETUP ---
+        const firebaseConfig = JSON.parse(typeof __firebase_config !== 'undefined' ? __firebase_config : '{}');
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+
+        let db, auth, user;
+        let leaderboardData = [];
+
+        // --- 3. STATE & ELEMENTS ---
+        const startScreen = document.getElementById('startScreen');
+        const gameScreen = document.getElementById('gameScreen');
+        const leaderboardScreen = document.getElementById('leaderboardScreen');
+        const posterImg = document.getElementById('gamePoster');
+        const optionsGrid = document.getElementById('optionsGrid');
+        const feedbackOverlay = document.getElementById('feedbackOverlay');
+        const feedbackText = document.getElementById('feedbackText');
+        const scoreDisplay = document.getElementById('scoreValue');
+        const livesContainer = document.getElementById('livesContainer');
+        const modeBadge = document.getElementById('gameModeBadge');
+        const nameInput = document.getElementById('playerNameInput');
+        const modeDesc = document.getElementById('modeDescription');
+        const loader = document.getElementById('imageLoader');
+
+        let sessionMovieDB = [];
+        let currentRoundMovie = null;
+        let isRoundActive = true;
+        let gameState = {
+            currentScore: 0,
+            currentStreak: 0,
+            lives: 3,
+            difficulty: 'normal', 
+            playerName: "Player 1",
+            gameActive: false
+        };
+
+        // --- 4. MODAL LOGIC ---
+        function showModal(title, message, isConfirm, callback) {
+            const modal = document.getElementById('customModal');
+            const modalTitle = document.getElementById('modalTitle');
+            const modalMessage = document.getElementById('modalMessage');
+            const modalButtons = document.getElementById('modalButtons');
+
+            modalTitle.textContent = title;
+            modalMessage.textContent = message;
+            modalButtons.innerHTML = '';
+
+            if (isConfirm) {
+                const yesBtn = document.createElement('button');
+                yesBtn.className = "cel-btn primary px-6 py-2 text-xl comic-font";
+                yesBtn.textContent = "YES";
+                yesBtn.onclick = () => { closeModal(); if(callback) callback(); };
+                
+                const noBtn = document.createElement('button');
+                noBtn.className = "cel-btn secondary px-6 py-2 text-xl comic-font";
+                noBtn.textContent = "NO";
+                noBtn.onclick = () => closeModal();
+
+                modalButtons.appendChild(noBtn);
+                modalButtons.appendChild(yesBtn);
+            } else {
+                const okBtn = document.createElement('button');
+                okBtn.className = "cel-btn primary px-8 py-2 text-xl comic-font";
+                okBtn.textContent = "OK";
+                okBtn.onclick = () => { closeModal(); if(callback) callback(); };
+                modalButtons.appendChild(okBtn);
+            }
+
+            modal.classList.remove('hidden');
+            setTimeout(() => {
+                modal.classList.remove('opacity-0');
+                document.getElementById('modalContent').classList.remove('scale-95');
+                document.getElementById('modalContent').classList.add('scale-100');
+            }, 10);
+        }
+
+        function closeModal() {
+            const modal = document.getElementById('customModal');
+            modal.classList.add('opacity-0');
+            document.getElementById('modalContent').classList.remove('scale-100');
+            document.getElementById('modalContent').classList.add('scale-95');
+            setTimeout(() => {
+                modal.classList.add('hidden');
+            }, 200);
+        }
+
+        // --- 5. GAME FUNCTIONS ---
+
+        window.quitGame = function() {
+            showModal("QUIT GAME?", "Your score will be saved.", true, finishGame);
+        }
+
+        function finishGame() {
+            gameState.gameActive = false;
+            if (window.saveScore) {
+                window.saveScore(gameState.playerName, gameState.currentScore, gameState.difficulty);
+            }
+            showModal("GAME OVER", `Final Score: ${gameState.currentScore}`, false, () => {
+                window.showLeaderboard();
+                window.switchLeaderboardTab(gameState.difficulty);
+            });
+        }
+
+        window.selectDifficulty = function(mode) {
+            gameState.difficulty = mode;
+            document.querySelectorAll('.diff-btn').forEach(btn => btn.classList.remove('selected'));
+            document.getElementById(`btnDiff${mode.charAt(0).toUpperCase() + mode.slice(1)}`).classList.add('selected');
+            
+            if (mode === 'normal') {
+                modeDesc.textContent = "Normal: Random movies. Fun!";
+                modeDesc.className = "text-xs font-bold mt-1 text-slate-500 min-h-[1.2em]";
+            } else if (mode === 'hard') {
+                modeDesc.textContent = "Hard: Similar colors & genres. Sudden Death!";
+                modeDesc.className = "text-xs font-bold mt-1 text-red-600 min-h-[1.2em]";
+            }
+        }
+
+        window.startGame = function() {
+            const name = nameInput.value.trim() || "Anonymous";
+            gameState.playerName = name;
+            gameState.currentScore = 0;
+            gameState.gameActive = true;
+            
+            if (gameState.difficulty === 'hard') gameState.lives = 1;
+            else gameState.lives = 3;
+            
+            sessionMovieDB = [...MASTER_DB];
+            sessionMovieDB = shuffleArray(sessionMovieDB);
+
+            updateLivesUI();
+            scoreDisplay.textContent = 0;
+            
+            if (gameState.difficulty === 'normal') {
+                modeBadge.textContent = "NORMAL";
+                modeBadge.className = `px-2 py-1 font-bold text-white border-2 border-black text-xs bg-indigo-500`;
+            } else if (gameState.difficulty === 'hard') {
+                modeBadge.textContent = "HARD 🔥";
+                modeBadge.className = `px-2 py-1 font-bold text-white border-2 border-black text-xs bg-red-500`;
+            }
+
+            showScreen('gameScreen');
+            startRound();
+        }
+
+        function updateLivesUI() {
+            livesContainer.innerHTML = '';
+            for (let i = 0; i < gameState.lives; i++) {
+                livesContainer.innerHTML += `<svg class="w-6 h-6 text-red-500 heart-icon" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z" clip-rule="evenodd"></path></svg>`;
+            }
+            const maxHearts = Math.max(3, gameState.lives); 
+            for (let i = gameState.lives; i < maxHearts; i++) {
+                livesContainer.innerHTML += `<svg class="w-6 h-6 text-slate-300 heart-icon" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z" clip-rule="evenodd"></path></svg>`;
+            }
+        }
+
+        function startRound() {
+            if (!gameState.gameActive) return;
+
+            if (sessionMovieDB.length === 0) {
+                showModal("CONGRATS!", "You've guessed every movie!", false, finishGame);
+                return;
+            }
+
+            isRoundActive = true;
+            
+            posterImg.classList.remove('loaded');
+            posterImg.classList.add('no-transition');
+            posterImg.classList.add('blurred');
+            posterImg.classList.remove('revealed');
+            posterImg.src = ''; 
+            
+            feedbackOverlay.classList.remove('opacity-100');
+            loader.style.display = 'flex';
+            optionsGrid.innerHTML = '';
+
+            const randomIndex = Math.floor(Math.random() * sessionMovieDB.length);
+            currentRoundMovie = sessionMovieDB[randomIndex];
+            
+            sessionMovieDB.splice(randomIndex, 1);
+
+            const imgToLoad = new Image();
+            imgToLoad.src = currentRoundMovie.poster;
+            
+            imgToLoad.onload = () => {
+                posterImg.src = currentRoundMovie.poster;
+                loader.style.display = 'none';
+                void posterImg.offsetWidth;
+                posterImg.classList.remove('no-transition');
+                posterImg.classList.add('loaded');
+            };
+            
+            imgToLoad.onerror = () => {
+                console.warn("Broken image detected, skipping:", currentRoundMovie.title);
+                startRound(); 
+            };
+
+            const options = generateOptions(currentRoundMovie);
+            
+            options.forEach(movie => {
+                const btn = document.createElement('button');
+                btn.className = `cel-btn secondary w-full py-4 px-6 rounded-lg text-lg flex items-center justify-center`;
+                btn.textContent = movie.title;
+                btn.onclick = () => handleGuess(movie, btn);
+                optionsGrid.appendChild(btn);
+            });
+        }
+
+        function generateOptions(target) {
+            const availableMovies = MASTER_DB.filter(m => m.title !== target.title);
+            let distractors = [];
+
+            if (gameState.difficulty === 'hard') {
+                const similarMovies = availableMovies.filter(m => m.visualType === target.visualType);
+                if (similarMovies.length >= 2) {
+                    distractors = shuffleArray(similarMovies).slice(0, 2);
+                } else {
+                    const remaining = 2 - similarMovies.length;
+                    distractors = [...similarMovies, ...shuffleArray(availableMovies).filter(m => !similarMovies.includes(m)).slice(0, remaining)];
+                }
+            } else {
+                distractors = shuffleArray(availableMovies).slice(0, 2);
+            }
+
+            return shuffleArray([target, ...distractors]);
+        }
+
+        function handleGuess(selectedMovie, btnElement) {
+            if (!isRoundActive) return;
+            isRoundActive = false;
+
+            posterImg.classList.remove('blurred');
+            posterImg.classList.add('revealed');
+
+            const isCorrect = selectedMovie.title === currentRoundMovie.title;
+            const buttons = optionsGrid.querySelectorAll('button');
+
+            if (isCorrect) {
+                gameState.currentScore++;
+                gameState.currentStreak++;
+                btnElement.classList.remove('secondary');
+                btnElement.classList.add('success');
+                feedbackText.textContent = "CORRECT!";
+                feedbackText.className = "comic-font text-6xl text-green-400 text-outline transform scale-100 rotate-[-5deg]";
+            } else {
+                gameState.lives--;
+                gameState.currentStreak = 0;
+                updateLivesUI();
+                btnElement.style.backgroundColor = '#f87171';
+                
+                buttons.forEach(b => {
+                    if (b.textContent === currentRoundMovie.title) {
+                        b.classList.remove('secondary');
+                        b.classList.add('success');
+                        b.style.transform = "scale(1.05)";
+                    }
+                });
+
+                feedbackText.textContent = "WRONG!";
+                feedbackText.className = "comic-font text-6xl text-red-500 text-outline transform scale-100 rotate-[5deg]";
+            }
+
+            scoreDisplay.textContent = gameState.currentScore;
+            feedbackOverlay.classList.remove('pointer-events-none');
+            feedbackOverlay.classList.add('opacity-100');
+
+            setTimeout(() => {
+                feedbackOverlay.classList.add('opacity-0');
+                feedbackOverlay.classList.remove('opacity-100');
+                
+                if (gameState.lives > 0) {
+                    startRound();
+                } else {
+                    setTimeout(finishGame, 500);
+                }
+                
+                buttons.forEach(b => b.disabled = true);
+            }, 2000); 
+        }
+
+        function shuffleArray(array) {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+            return array;
+        }
+
+        function showScreen(screenId) {
+            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+            document.getElementById(screenId).classList.add('active');
+        }
+
+        window.goToMenu = function() {
+            showScreen('startScreen');
+        }
+
+        window.showLeaderboard = function() {
+            showScreen('leaderboardScreen');
+            window.switchLeaderboardTab(gameState.difficulty || 'normal');
+        }
+
+        window.switchLeaderboardTab = function(tab) {
+            const listNormal = document.getElementById('normalLeaderboardList');
+            const listHard = document.getElementById('hardLeaderboardList');
+            const btnNormal = document.getElementById('tabNormal');
+            const btnHard = document.getElementById('tabHard');
+
+            listNormal.classList.add('hidden');
+            listHard.classList.add('hidden');
+            
+            [btnNormal, btnHard].forEach(btn => {
+                btn.className = "flex-1 py-1 text-xs sm:text-sm font-bold border-2 border-black bg-white text-black hover:bg-slate-100 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]";
+            });
+
+            if (tab === 'normal') {
+                listNormal.classList.remove('hidden');
+                btnNormal.className = "flex-1 py-1 text-xs sm:text-sm font-bold border-2 border-black bg-indigo-500 text-white shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]";
+            } else if (tab === 'hard') {
+                listHard.classList.remove('hidden');
+                btnHard.className = "flex-1 py-1 text-xs sm:text-sm font-bold border-2 border-black bg-red-500 text-white shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]";
+            }
+        }
+
+        // --- 6. INITIALIZERS ---
+        function initLeaderboardListener() {
+            if (!user || !db) return;
+            const leaderboardRef = collection(db, 'artifacts', appId, 'public', 'data', 'leaderboard');
+            onSnapshot(leaderboardRef, (snapshot) => {
+                const data = [];
+                snapshot.forEach((doc) => {
+                    data.push(doc.data());
+                });
+                leaderboardData = data;
+                renderLeaderboard();
+            });
+        }
+
+        window.renderLeaderboard = function() {
+            const normalScores = leaderboardData.filter(d => d.mode === 'normal').sort((a, b) => b.score - a.score).slice(0, 10);
+            const hardScores = leaderboardData.filter(d => d.mode === 'hard').sort((a, b) => b.score - a.score).slice(0, 10);
+
+            renderTable('normalLeaderboardList', normalScores);
+            renderTable('hardLeaderboardList', hardScores);
+        }
+
+        function renderTable(elementId, data) {
+            const list = document.getElementById(elementId);
+            if (!list) return;
+            
+            list.innerHTML = data.map((entry, index) => `
+                <div class="flex justify-between items-center bg-white border-2 border-black p-2 mb-2 shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] transform hover:-translate-y-1 transition-transform">
+                    <div class="flex items-center gap-3">
+                        <span class="font-black text-xl w-6 text-slate-400">#${index + 1}</span>
+                        <span class="font-bold text-lg truncate max-w-[120px] uppercase">${entry.name}</span>
+                    </div>
+                    <span class="font-black text-xl text-rose-500">${entry.score}</span>
+                </div>
+            `).join('');
+
+            if (data.length === 0) {
+                list.innerHTML = `<div class="text-center italic text-slate-500 py-4">No scores yet!</div>`;
+            }
+        }
+
+        // MISSING FUNCTION RESTORED HERE
+        window.saveScore = async function(name, score, mode) {
+            if (!user || !db) return;
+            try {
+                await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'leaderboard'), {
+                    name: name,
+                    score: score,
+                    mode: mode,
+                    timestamp: serverTimestamp()
+                });
+                console.log("Score saved!");
+            } catch (e) {
+                console.error("Error saving score: ", e);
+            }
+        }
+
+        if (firebaseConfig.apiKey) {
+            const app = initializeApp(firebaseConfig);
+            auth = getAuth(app);
+            db = getFirestore(app);
+
+            const initAuth = async () => {
+                try {
+                    if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                        await signInWithCustomToken(auth, __initial_auth_token);
+                    } else {
+                        await signInAnonymously(auth);
+                    }
+                    user = auth.currentUser;
+                    initLeaderboardListener();
+                } catch (error) {
+                    console.error("Auth Error:", error);
+                }
+            };
+            initAuth();
+        }
+
+        window.selectDifficulty('normal');
+
+    </script>
+</body>
+</html>
