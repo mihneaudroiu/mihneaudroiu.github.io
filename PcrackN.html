@@ -1,0 +1,527 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Polymarket Replica - Pranaya vs Nick</title>
+    <!-- Chart.js for the price graph -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            --bg-dark: #0f111a;
+            --bg-card: #1a1d26;
+            --bg-hover: #242936;
+            --text-main: #ffffff;
+            --text-sub: #8b95a5;
+            --green: #00c885;
+            --red: #ff5a5a;
+            --blue: #2d9cdb;
+            --border: #2c3240;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+        
+        body { background-color: var(--bg-dark); color: var(--text-main); display: flex; flex-direction: column; height: 100vh; overflow-y: auto; }
+
+        /* Header */
+        header {
+            display: flex; justify-content: space-between; align-items: center; padding: 15px 30px;
+            border-bottom: 1px solid var(--border); background-color: var(--bg-card);
+        }
+        .logo { font-weight: 800; font-size: 1.2rem; letter-spacing: -0.5px; }
+        .user-info { display: flex; gap: 20px; font-size: 0.9rem; align-items: center; }
+        .balance-badge { background: var(--bg-hover); padding: 5px 12px; border-radius: 20px; font-weight: 600; color: var(--green); }
+
+        /* Layout */
+        .container { max-width: 1100px; margin: 30px auto; display: grid; grid-template-columns: 2fr 1fr; gap: 20px; padding: 0 20px; width: 100%; }
+        
+        /* Market Column */
+        .market-header { margin-bottom: 20px; }
+        /* Removed .market-icon styles as element is removed */
+        
+        h1 { font-size: 1.8rem; font-weight: 700; margin-bottom: 10px; line-height: 1.2; }
+        .stats-row { display: flex; gap: 20px; color: var(--text-sub); font-size: 0.9rem; margin-bottom: 20px; }
+        .stat-value { color: var(--text-main); font-weight: 600; }
+        
+        .chart-container { background: var(--bg-card); border-radius: 12px; padding: 20px; border: 1px solid var(--border); height: 400px; position: relative; margin-bottom: 20px; }
+
+        /* Live Activity Feed */
+        .activity-section { background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; padding: 20px; }
+        .activity-header { font-size: 1rem; font-weight: 700; margin-bottom: 15px; display: flex; align-items: center; gap: 10px; }
+        .live-dot { width: 8px; height: 8px; background: var(--green); border-radius: 50%; box-shadow: 0 0 8px var(--green); animation: pulse 1.5s infinite; }
+        
+        .activity-list { max-height: 300px; overflow-y: hidden; position: relative; }
+        .activity-item { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid var(--border); font-size: 0.9rem; animation: slideDown 0.3s ease-out; }
+        .activity-user { display: flex; align-items: center; gap: 10px; font-weight: 500; }
+        .avatar { width: 24px; height: 24px; border-radius: 50%; background: var(--bg-hover); display: flex; align-items: center; justify-content: center; font-size: 0.7rem; color: var(--text-sub); }
+        .activity-meta { text-align: right; }
+        .type-yes { color: var(--green); }
+        .type-no { color: var(--red); }
+        .activity-time { font-size: 0.75rem; color: var(--text-sub); }
+
+        /* Trading Column */
+        .trade-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; padding: 20px; display: flex; flex-direction: column; height: fit-content; position: sticky; top: 20px; }
+        .outcome-tabs { display: flex; background: var(--bg-dark); padding: 4px; border-radius: 8px; margin-bottom: 20px; }
+        .tab { flex: 1; text-align: center; padding: 10px; cursor: pointer; border-radius: 6px; font-weight: 600; transition: 0.2s; color: var(--text-sub); }
+        .tab.active-yes { background-color: var(--green); color: #000; }
+        .tab.active-no { background-color: var(--red); color: #fff; }
+        
+        .price-display { display: flex; justify-content: space-between; margin-bottom: 15px; font-size: 0.9rem; color: var(--text-sub); }
+        .big-price { font-size: 2rem; font-weight: 700; color: var(--green); }
+        
+        /* Global Number Input Style */
+        input[type="number"] {
+            width: 100%; background: var(--bg-dark); border: 1px solid var(--border); color: white; padding: 15px; border-radius: 8px; font-size: 1.1rem; margin-bottom: 15px; outline: none;
+        }
+        input:focus { border-color: var(--text-sub); }
+
+        .btn-trade {
+            width: 100%; padding: 15px; border-radius: 8px; border: none; font-weight: 700; font-size: 1rem; cursor: pointer; transition: 0.2s;
+        }
+        .btn-buy-yes { background-color: var(--green); color: #003322; }
+        .btn-buy-no { background-color: var(--red); color: white; }
+        .btn-trade:hover { opacity: 0.9; transform: translateY(-1px); }
+
+        .portfolio { margin-top: 20px; border-top: 1px solid var(--border); padding-top: 15px; }
+        .portfolio-row { display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 0.9rem; }
+
+        /* Modal */
+        #loginModal {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); display: flex; justify-content: center; align-items: center; z-index: 999; backdrop-filter: blur(5px);
+        }
+        .login-box { background: var(--bg-card); padding: 40px; border-radius: 16px; border: 1px solid var(--border); width: 400px; text-align: center; }
+        .login-box h2 { margin-bottom: 20px; }
+        
+        /* Updated Login Box Inputs to match perfectly */
+        .login-box input { 
+            width: 100%; 
+            margin-bottom: 15px; 
+            background: var(--bg-dark); 
+            border: 1px solid var(--border); 
+            padding: 12px; 
+            border-radius: 8px; 
+            color: white; 
+            font-size: 1rem;
+            outline: none;
+        }
+        .login-box input:focus { border-color: var(--text-sub); }
+
+        .btn-start { background: var(--blue); color: white; width: 100%; padding: 15px; border-radius: 8px; border: none; font-weight: bold; cursor: pointer; font-size: 1rem; }
+
+        /* Toast Notifications */
+        #toast-container {
+            position: fixed; bottom: 20px; right: 20px; z-index: 1000;
+        }
+        .toast {
+            background: var(--bg-card); border: 1px solid var(--border); color: white; padding: 12px 20px; border-radius: 8px; margin-top: 10px; min-width: 250px; box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+            animation: slideIn 0.3s ease-out forwards;
+        }
+        .toast.error { border-left: 4px solid var(--red); }
+        .toast.success { border-left: 4px solid var(--green); }
+        
+        @keyframes slideIn {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+        @keyframes slideDown {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+
+        @media (max-width: 768px) {
+            .container { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Onboarding Modal -->
+    <div id="loginModal">
+        <div class="login-box">
+            <h2>Welcome Trader</h2>
+            <p style="color: var(--text-sub); margin-bottom: 20px;">Enter your details to start betting.</p>
+            <input type="text" id="inputName" placeholder="Display Name">
+            <input type="number" id="inputBalance" placeholder="Initial Balance ($)" value="1000">
+            <button class="btn-start" onclick="startGame()">Start Trading</button>
+        </div>
+    </div>
+
+    <!-- Toast Container -->
+    <div id="toast-container"></div>
+
+    <!-- Main App -->
+    <header>
+        <div class="logo">POLYCLONE</div>
+        <div class="user-info">
+            <span id="display-name">Guest</span>
+            <div class="balance-badge" id="display-balance">$0.00</div>
+        </div>
+    </header>
+
+    <div class="container">
+        <!-- Market Column -->
+        <div class="market-column">
+            <div class="market-header">
+                <!-- Removed Lightning Icon -->
+                <h1>Will Pranaya crack Nick Yes?</h1>
+                <div class="stats-row">
+                    <span>Volume: <span class="stat-value" id="display-volume">$124,392</span></span>
+                    <span>Ends: <span class="stat-value">Dec 31, 2025</span></span>
+                </div>
+            </div>
+            
+            <div class="chart-container">
+                <canvas id="priceChart"></canvas>
+            </div>
+
+            <!-- Live Activity Section -->
+            <div class="activity-section">
+                <div class="activity-header">
+                    <span class="live-dot"></span>
+                    Live Activity
+                </div>
+                <div class="activity-list" id="activity-feed">
+                    <!-- Dynamic items will be injected here -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Trading Column -->
+        <div class="trade-card">
+            <div class="outcome-tabs">
+                <div class="tab active-yes" id="tab-yes" onclick="setTradeType('yes')">Buy Yes</div>
+                <div class="tab" id="tab-no" onclick="setTradeType('no')">Buy No</div>
+            </div>
+
+            <div class="price-display">
+                <span>Price per share</span>
+                <span class="big-price" id="current-price">50¢</span>
+            </div>
+
+            <input type="number" id="betAmount" placeholder="Amount to bet ($0.00)" oninput="calculateReturns()">
+
+            <div style="margin-bottom: 15px; font-size: 0.85rem; color: var(--text-sub); display: flex; justify-content: space-between;">
+                <span>Est. Shares</span>
+                <span id="est-shares" style="color: var(--text-main);">0</span>
+            </div>
+             <div style="margin-bottom: 15px; font-size: 0.85rem; color: var(--text-sub); display: flex; justify-content: space-between;">
+                <span>Potential Return</span>
+                <span id="est-return" style="color: var(--green);">+$0.00</span>
+            </div>
+
+            <button class="btn-trade btn-buy-yes" id="trade-btn" onclick="placeBet()">Buy Yes</button>
+
+            <div class="portfolio">
+                <h4 style="margin-bottom: 10px; color: var(--text-sub); text-transform: uppercase; font-size: 0.75rem; letter-spacing: 1px;">Your Position</h4>
+                <div class="portfolio-row">
+                    <span>Yes Shares</span>
+                    <span id="holdings-yes">0</span>
+                </div>
+                <div class="portfolio-row">
+                    <span>No Shares</span>
+                    <span id="holdings-no">0</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- State Management ---
+        let user = {
+            name: '',
+            balance: 0,
+            sharesYes: 0,
+            sharesNo: 0
+        };
+
+        let market = {
+            yesPrice: 0.50, // Starts at 50 cents
+            volume: 124392,
+            tradeType: 'yes' // or 'no'
+        };
+
+        // Updated Bot Names Database
+        const botNames = ["Samad", "Shua", "Ashley", "Micah", "Steven", "Stephen", "Mega", "Ada"];
+
+        // --- Initialization ---
+        const ctx = document.getElementById('priceChart').getContext('2d');
+        let priceChart;
+
+        // Generate dummy historical data
+        const initialData = Array.from({length: 50}, (_, i) => 0.45 + (Math.random() * 0.1)); 
+
+        function showToast(msg, type = 'error') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            toast.textContent = msg;
+            container.appendChild(toast);
+            
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+
+        function startGame() {
+            const nameInput = document.getElementById('inputName').value;
+            const balanceInput = parseFloat(document.getElementById('inputBalance').value);
+
+            if(!nameInput || isNaN(balanceInput)) {
+                showToast("Please enter a valid name and balance.", "error");
+                return;
+            }
+
+            user.name = nameInput;
+            user.balance = balanceInput;
+
+            document.getElementById('display-name').textContent = user.name;
+            updateBalanceDisplay();
+            document.getElementById('loginModal').style.display = 'none';
+
+            initChart();
+            updateUI();
+            
+            // Start the market simulation
+            simulationLoop();
+        }
+
+        // --- Market Simulation ---
+        function simulationLoop() {
+            // Random interval between 1000ms and 3000ms
+            const delay = Math.floor(Math.random() * 2000) + 1000;
+            
+            setTimeout(() => {
+                simulateBotTrade();
+                simulationLoop(); // Recurse
+            }, delay);
+        }
+
+        function simulateBotTrade() {
+            // Random bot params
+            const botName = botNames[Math.floor(Math.random() * botNames.length)];
+            const isYes = Math.random() > 0.5;
+            const amount = Math.floor(Math.random() * 900) + 10; // $10 - $910 trade
+
+            // Update Volume
+            market.volume += amount;
+            document.getElementById('display-volume').textContent = `$${market.volume.toLocaleString()}`;
+
+            // Visual impact (Price Change)
+            simulatePriceImpact(amount, isYes ? 'yes' : 'no');
+            updateChart(market.yesPrice);
+            updateUI(); // Updates the big price number
+
+            // Add to activity feed
+            addActivityItem(botName, isYes ? 'yes' : 'no', amount);
+        }
+
+        function addActivityItem(name, type, amount) {
+            const feed = document.getElementById('activity-feed');
+            
+            const item = document.createElement('div');
+            item.className = 'activity-item';
+            
+            const typeClass = type === 'yes' ? 'type-yes' : 'type-no';
+            const typeText = type === 'yes' ? 'Bought Yes' : 'Bought No';
+            const avatarLetter = name.charAt(0).toUpperCase();
+
+            item.innerHTML = `
+                <div class="activity-user">
+                    <div class="avatar">${avatarLetter}</div>
+                    <span>${name}</span>
+                </div>
+                <div class="activity-meta">
+                    <div class="${typeClass}">${typeText}</div>
+                    <div class="activity-time">$${amount}</div>
+                </div>
+            `;
+            
+            // Insert at top
+            feed.insertBefore(item, feed.firstChild);
+
+            // Keep list clean (max 8 items)
+            if (feed.children.length > 8) {
+                feed.removeChild(feed.lastChild);
+            }
+        }
+
+        // --- Chart Logic ---
+        function initChart() {
+            priceChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: Array.from({length: 50}, (_, i) => i),
+                    datasets: [{
+                        label: 'Yes Price',
+                        data: initialData,
+                        borderColor: '#00c885',
+                        backgroundColor: 'rgba(0, 200, 133, 0.1)',
+                        borderWidth: 2,
+                        fill: true,
+                        tension: 0.4,
+                        pointRadius: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { 
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return (context.raw * 100).toFixed(1) + '%';
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: { display: false },
+                        y: { 
+                            display: true, 
+                            grid: { color: '#2c3240' },
+                            min: 0, max: 1,
+                            ticks: {
+                                callback: function(value) {
+                                    return (value * 100).toFixed(0) + '%';
+                                }
+                            }
+                        }
+                    },
+                    animation: false
+                }
+            });
+        }
+
+        function updateChart(newPrice) {
+            const data = priceChart.data.datasets[0].data;
+            data.push(newPrice);
+            if(data.length > 50) data.shift();
+            priceChart.update();
+        }
+
+        // --- Trading Logic ---
+        function setTradeType(type) {
+            market.tradeType = type;
+            const btn = document.getElementById('trade-btn');
+            const yesTab = document.getElementById('tab-yes');
+            const noTab = document.getElementById('tab-no');
+            const priceDisplay = document.getElementById('current-price');
+
+            if (type === 'yes') {
+                yesTab.classList.add('active-yes');
+                noTab.classList.remove('active-no');
+                btn.className = 'btn-trade btn-buy-yes';
+                btn.textContent = 'Buy Yes';
+                priceDisplay.style.color = 'var(--green)';
+            } else {
+                yesTab.classList.remove('active-yes');
+                noTab.classList.add('active-no');
+                btn.className = 'btn-trade btn-buy-no';
+                btn.textContent = 'Buy No';
+                priceDisplay.style.color = 'var(--red)';
+            }
+            
+            updateUI();
+            calculateReturns();
+        }
+
+        function calculateReturns() {
+            const amount = parseFloat(document.getElementById('betAmount').value);
+            const price = market.tradeType === 'yes' ? market.yesPrice : (1 - market.yesPrice);
+            
+            if (isNaN(amount) || amount <= 0) {
+                document.getElementById('est-shares').textContent = '0';
+                document.getElementById('est-return').textContent = '+$0.00';
+                return;
+            }
+
+            const shares = amount / price;
+            const potentialProfit = shares - amount;
+
+            document.getElementById('est-shares').textContent = shares.toFixed(2);
+            document.getElementById('est-return').textContent = `+$${potentialProfit.toFixed(2)}`;
+        }
+
+        function placeBet() {
+            const amount = parseFloat(document.getElementById('betAmount').value);
+            
+            // Validation
+            if (isNaN(amount) || amount <= 0) {
+                showToast("Enter a valid amount", "error");
+                return;
+            }
+            if (amount > user.balance) {
+                showToast("Insufficient funds", "error");
+                return;
+            }
+
+            // Execute Trade
+            const currentPrice = market.tradeType === 'yes' ? market.yesPrice : (1 - market.yesPrice);
+            const sharesBought = amount / currentPrice;
+
+            user.balance -= amount;
+            market.volume += amount;
+            document.getElementById('display-volume').textContent = `$${market.volume.toLocaleString()}`;
+            
+            if (market.tradeType === 'yes') {
+                user.sharesYes += sharesBought;
+                simulatePriceImpact(amount, 'yes');
+                addActivityItem(user.name, 'yes', amount);
+            } else {
+                user.sharesNo += sharesBought;
+                simulatePriceImpact(amount, 'no');
+                addActivityItem(user.name, 'no', amount);
+            }
+
+            // Update UI
+            document.getElementById('betAmount').value = '';
+            calculateReturns(); 
+            updateBalanceDisplay();
+            updateUI();
+            updateChart(market.yesPrice);
+            
+            showToast(`Bought ${sharesBought.toFixed(1)} shares`, "success");
+        }
+
+        function simulatePriceImpact(amount, type) {
+            // Linear impact: $100 moves price by 1%
+            const impact = (amount / 100) * 0.01; 
+
+            if (type === 'yes') {
+                market.yesPrice += impact;
+            } else {
+                market.yesPrice -= impact;
+            }
+
+            // Cap prices
+            if(market.yesPrice > 0.99) market.yesPrice = 0.99;
+            if(market.yesPrice < 0.01) market.yesPrice = 0.01;
+        }
+
+        // --- UI Updates ---
+        function updateBalanceDisplay() {
+            document.getElementById('display-balance').textContent = `$${user.balance.toFixed(2)}`;
+        }
+
+        function updateUI() {
+            const yesPriceDisp = (market.yesPrice * 100).toFixed(1);
+            const noPriceDisp = ((1 - market.yesPrice) * 100).toFixed(1);
+            
+            // Update big price display based on selected tab
+            const displayPrice = market.tradeType === 'yes' ? yesPriceDisp : noPriceDisp;
+            document.getElementById('current-price').textContent = `${displayPrice}¢`;
+
+            // Update Holdings
+            document.getElementById('holdings-yes').textContent = user.sharesYes.toFixed(2);
+            document.getElementById('holdings-no').textContent = user.sharesNo.toFixed(2);
+        }
+    </script>
+</body>
+</html>
