@@ -60,13 +60,14 @@
 
     <!-- Header -->
     <header class="bg-white/90 backdrop-blur-md border-b border-gray-200 sticky top-0 z-50">
-        <div class="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between">
+        <div class="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
             <div class="flex items-center gap-2 text-rose-600">
                 <i data-lucide="map-pin" class="fill-current w-6 h-6"></i>
-                <span class="font-extrabold text-xl tracking-tight text-gray-900">Insta<span class="text-rose-600">Spots</span></span>
+                <span class="font-extrabold text-xl tracking-tight text-gray-900 hidden sm:inline">Insta<span class="text-rose-600">Spots</span></span>
             </div>
             
-            <div class="flex gap-2">
+            <div class="flex items-center gap-3">
+                <!-- View Toggle -->
                 <div class="bg-gray-100 p-1 rounded-lg flex items-center">
                     <button id="btn-view-map" class="px-3 py-1.5 rounded-md text-sm font-medium transition-all bg-white text-gray-900 shadow-sm">
                         Map
@@ -76,10 +77,35 @@
                     </button>
                 </div>
 
-                <button id="btn-add-spot" class="px-4 py-2 rounded-lg font-medium transition-all duration-200 flex items-center justify-center gap-2 active:scale-95 bg-gradient-to-r from-pink-500 to-rose-600 text-white shadow-lg shadow-rose-500/30 hover:shadow-rose-500/50">
+                <!-- Add Button -->
+                <button id="btn-add-spot" class="px-3 sm:px-4 py-2 rounded-lg font-medium transition-all duration-200 flex items-center justify-center gap-2 active:scale-95 bg-gradient-to-r from-pink-500 to-rose-600 text-white shadow-lg shadow-rose-500/30 hover:shadow-rose-500/50 hidden">
                     <i data-lucide="plus" class="w-4 h-4"></i>
                     <span class="hidden sm:inline">Add Spot</span>
                 </button>
+
+                <!-- Auth Section -->
+                <div id="auth-container" class="ml-2 pl-2 border-l border-gray-200">
+                    <!-- Login Button -->
+                    <button id="btn-login" class="flex items-center gap-2 px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors shadow-sm">
+                        <svg class="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><path d="M12.545,10.239v3.821h5.445c-0.712,2.315-2.647,3.972-5.445,3.972c-3.332,0-6.033-2.701-6.033-6.032s2.701-6.032,6.033-6.032c1.498,0,2.866,0.549,3.921,1.453l2.814-2.814C17.503,2.988,15.139,2,12.545,2C7.021,2,2.543,6.477,2.543,12s4.478,10,10.002,10c8.396,0,10.249-7.85,9.426-11.748L12.545,10.239z"/></svg>
+                        <span class="hidden sm:inline">Sign in</span>
+                    </button>
+                    
+                    <!-- User Avatar (Hidden initially) -->
+                    <div id="user-profile" class="hidden relative group">
+                        <img id="user-avatar" src="" alt="User" class="w-9 h-9 rounded-full border border-gray-200 cursor-pointer hover:ring-2 hover:ring-rose-500 transition-all object-cover">
+                        <!-- Dropdown -->
+                        <div class="absolute right-0 top-full mt-2 w-48 bg-white rounded-lg shadow-xl border border-gray-100 py-1 hidden group-hover:block hover:block z-50">
+                            <div class="px-4 py-2 border-b border-gray-50">
+                                <p id="user-name" class="text-sm font-semibold text-gray-900 truncate">User</p>
+                                <p class="text-xs text-gray-500">Google Account</p>
+                            </div>
+                            <button id="btn-logout" class="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors flex items-center gap-2">
+                                <i data-lucide="log-out" class="w-4 h-4"></i> Sign Out
+                            </button>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     </header>
@@ -104,7 +130,6 @@
                 <!-- Content injected via JS -->
             </div>
         </div>
-
     </main>
 
     <!-- Modal -->
@@ -210,18 +235,32 @@
     <script type="module">
         // Import Firebase
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, collection, addDoc, deleteDoc, doc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        // Firebase Configuration
-        const firebaseConfig = JSON.parse(__firebase_config);
+        // --- Firebase Configuration ---
+        const firebaseConfig = {
+            apiKey: "AIzaSyDTHu_Igt6kKSFOJPEZuu-Z-JO-DlLwans",
+            authDomain: "spots-5a86c.firebaseapp.com",
+            projectId: "spots-5a86c",
+            storageBucket: "spots-5a86c.firebasestorage.app",
+            messagingSenderId: "511393751384",
+            appId: "1:511393751384:web:8f961aebb3e6dae7b9052d",
+            measurementId: "G-DBTVW464BT"
+        };
+
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
         const db = getFirestore(app);
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        
+        // This is a grouping ID for your app's data
+        const appId = 'insta-spots-v1'; 
+        
+        const provider = new GoogleAuthProvider();
 
         // --- State ---
-        let places = []; // Now managed by Firestore listener
+        let places = [];
+        let unsubscribe = null; // To stop listening when logged out
 
         let state = {
             view: 'map', // 'map' | 'list'
@@ -258,6 +297,13 @@
             tabBtns: document.querySelectorAll('.tab-btn'),
             tabContents: document.querySelectorAll('.tab-content'),
             
+            // Auth UI
+            btnLogin: document.getElementById('btn-login'),
+            btnLogout: document.getElementById('btn-logout'),
+            userProfile: document.getElementById('user-profile'),
+            userAvatar: document.getElementById('user-avatar'),
+            userName: document.getElementById('user-name'),
+
             // Inputs
             inputTitle: document.getElementById('input-title'),
             inputDesc: document.getElementById('input-desc'),
@@ -293,39 +339,75 @@
             renderMarkers();
             renderList();
             setupEventListeners();
-            
-            // Start Auth
-            initAuth();
         }
 
-        const initAuth = async () => {
-            if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-                await signInWithCustomToken(auth, __initial_auth_token);
-            } else {
-                await signInAnonymously(auth);
-            }
-        };
+        // --- Auth Logic ---
 
         // Listen for Auth state
         onAuthStateChanged(auth, (user) => {
             if (user) {
-                console.log("User signed in:", user.uid);
+                // User is signed in
+                console.log("User signed in:", user.email);
+                
+                // Update UI
+                els.btnLogin.classList.add('hidden');
+                els.userProfile.classList.remove('hidden');
+                els.btnAddSpot.classList.remove('hidden'); // Show Add button only when logged in
+                els.userAvatar.src = user.photoURL || 'https://ui-avatars.com/api/?name=' + user.email;
+                els.userName.textContent = user.displayName || user.email;
+
+                // Load Data
                 setupRealtimeListener(user);
+            } else {
+                // User is signed out
+                console.log("User signed out");
+                
+                // Update UI
+                els.btnLogin.classList.remove('hidden');
+                els.userProfile.classList.add('hidden');
+                els.btnAddSpot.classList.add('hidden'); // Hide add button
+                
+                // Clear Data
+                if (unsubscribe) unsubscribe();
+                places = [];
+                renderMarkers();
+                renderList();
             }
         });
+
+        // Login Function
+        els.btnLogin.onclick = async () => {
+            try {
+                await signInWithPopup(auth, provider);
+            } catch (error) {
+                console.error("Login failed:", error);
+                alert("Login failed: " + error.message);
+            }
+        };
+
+        // Logout Function
+        els.btnLogout.onclick = async () => {
+            try {
+                await signOut(auth);
+            } catch (error) {
+                console.error("Logout failed:", error);
+            }
+        };
 
         // Setup Firestore Listener
         function setupRealtimeListener(user) {
             // Path: artifacts/{appId}/users/{userId}/spots
+            if (unsubscribe) unsubscribe();
+
             const colRef = collection(db, 'artifacts', appId, 'users', user.uid, 'spots');
             
-            onSnapshot(colRef, (snapshot) => {
+            unsubscribe = onSnapshot(colRef, (snapshot) => {
                 places = snapshot.docs.map(doc => ({
                     id: doc.id,
                     ...doc.data()
                 }));
 
-                // Sort by creation time (newest first) in memory
+                // Sort by creation time (newest first)
                 places.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
 
                 renderMarkers();
@@ -448,12 +530,16 @@
         }
 
         function renderList() {
+            // Empty State
             if (places.length === 0) {
+                let msg = auth.currentUser ? "You haven't added any spots yet." : "Sign in to see your spots.";
+                let subMsg = auth.currentUser ? "Click 'Add Spot' to get started." : "Your collection will sync across devices.";
+
                 els.listContainer.innerHTML = `
                    <div class="text-center py-20 opacity-50">
                       <i data-lucide="map" class="w-12 h-12 mx-auto mb-4 text-gray-300"></i>
-                      <p class="text-xl font-medium text-gray-400">No spots saved yet.</p>
-                      <p class="text-sm text-gray-400 mt-2">Add a spot to start your collection!</p>
+                      <p class="text-xl font-medium text-gray-400">${msg}</p>
+                      <p class="text-sm text-gray-400 mt-2">${subMsg}</p>
                    </div>`;
                 lucide.createIcons();
                 return;
@@ -524,6 +610,7 @@
 
             // Modal Actions
             els.btnAddSpot.onclick = () => {
+                if (!auth.currentUser) return alert("Please sign in first.");
                 resetForm();
                 state.isAdding = true;
                 state.addMode = 'click';
@@ -643,7 +730,7 @@
         async function savePlace() {
             const user = auth.currentUser;
             if (!user) {
-                alert("You must be logged in to save spots (check console if auth failed).");
+                alert("You must be logged in to save spots.");
                 return;
             }
             if (!state.formData.lat || !state.formData.title) return;
@@ -651,7 +738,7 @@
             // Prepare Data for Firestore
             const newPlace = {
                 ...state.formData,
-                createdAt: Date.now() // For sorting
+                createdAt: Date.now()
             };
 
             els.btnSave.disabled = true;
