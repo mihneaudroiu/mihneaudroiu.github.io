@@ -231,7 +231,7 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, collection, addDoc, deleteDoc, doc, onSnapshot, setDoc, query, where, getDocs, getDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getFirestore, collection, addDoc, updateDoc, deleteDoc, doc, onSnapshot, setDoc, query, where, getDocs, getDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         // --- Firebase Config (Updated with your keys) ---
         const firebaseConfig = {
@@ -266,7 +266,8 @@
             // Sharing State
             ownerId: null,      // Who owns the map we are looking at?
             currentRole: 'none', // 'owner', 'editor', 'viewer', 'none'
-            isPublic: false
+            isPublic: false,
+            editingId: null // New state for tracking edits
         };
 
         // --- Maps ---
@@ -613,7 +614,9 @@
                     const canDelete = state.currentRole === 'owner' || state.currentRole === 'editor';
                     
                     html += `<div class="bg-white rounded-xl border border-gray-100 shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden group"><div class="p-5"><div class="flex justify-between items-start mb-2"><h3 class="font-bold text-gray-900 text-lg leading-tight group-hover:text-rose-600 transition-colors">${place.title}</h3><div class="flex gap-2"><a href="https://www.google.com/maps/search/?api=1&query=${place.lat},${place.lng}" target="_blank" class="p-1.5 text-gray-400 hover:text-blue-500 hover:bg-blue-50 rounded-full transition-colors"><i data-lucide="navigation" class="w-4 h-4"></i></a>
-                    ${canDelete ? `<button onclick="window.deletePlace('${place.id}')" class="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-full transition-colors"><i data-lucide="trash-2" class="w-4 h-4"></i></button>` : ''}
+                    ${canDelete ? `
+                        <button onclick="window.editPlace('${place.id}')" class="p-1.5 text-gray-400 hover:text-blue-500 hover:bg-blue-50 rounded-full transition-colors"><i data-lucide="edit-2" class="w-4 h-4"></i></button>
+                        <button onclick="window.deletePlace('${place.id}')" class="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-full transition-colors"><i data-lucide="trash-2" class="w-4 h-4"></i></button>` : ''}
                     </div></div><p class="text-sm text-gray-500 mb-4 line-clamp-2">${place.description || "No description provided."}</p><div class="flex flex-wrap gap-2 text-xs mb-4">${place.city ? `<span class="inline-flex items-center gap-1 px-2.5 py-1 bg-gray-100 text-gray-600 rounded-md font-medium"><i data-lucide="map-pin" class="w-3 h-3"></i> ${place.city}</span>` : ''}</div>${place.instaLink ? `<a href="${place.instaLink}" target="_blank" class="flex items-center justify-center gap-2 w-full py-2.5 bg-gradient-to-r from-purple-50 to-pink-50 text-purple-700 rounded-lg font-medium hover:from-purple-100 hover:to-pink-100 transition-all border border-purple-100 text-sm"><i data-lucide="instagram" class="w-4 h-4"></i> View on Instagram</a>` : ''}</div></div>`;
                 });
                 html += `</div></div>`;
@@ -626,11 +629,17 @@
             if (!state.ownerId || (state.currentRole !== 'owner' && state.currentRole !== 'editor')) return;
             if (!state.formData.lat || !state.formData.title) return;
 
-            const newPlace = { ...state.formData, createdAt: Date.now() };
+            const newPlace = { ...state.formData };
+            if (!state.editingId) newPlace.createdAt = Date.now();
+            
             els.btnSave.disabled = true; els.btnSave.textContent = "Saving...";
 
             try {
-                await addDoc(collection(db, 'artifacts', appId, 'users', state.ownerId, 'spots'), newPlace);
+                if (state.editingId) {
+                    await updateDoc(doc(db, 'artifacts', appId, 'users', state.ownerId, 'spots', state.editingId), newPlace);
+                } else {
+                    await addDoc(collection(db, 'artifacts', appId, 'users', state.ownerId, 'spots'), newPlace);
+                }
                 state.isAdding = false; resetForm(); updateModalUI();
             } catch (error) {
                 console.error(error); alert("Failed to save.");
@@ -644,6 +653,32 @@
             if(confirm("Delete this spot?")) {
                 try { await deleteDoc(doc(db, 'artifacts', appId, 'users', state.ownerId, 'spots', id)); } catch(e) { alert("Error deleting"); }
             }
+        };
+
+        window.editPlace = function(id) {
+            if (state.currentRole !== 'owner' && state.currentRole !== 'editor') return;
+            const place = places.find(p => p.id === id);
+            if(!place) return;
+
+            state.editingId = id;
+            state.formData = { lat: place.lat, lng: place.lng, city: place.city, title: place.title, description: place.description, instaLink: place.instaLink };
+            
+            // UI Updates
+            els.inputTitle.value = place.title;
+            els.inputDesc.value = place.description;
+            els.inputInsta.value = place.instaLink;
+            
+            // Map updates
+            if (state.tempMarker) map.removeLayer(state.tempMarker);
+            state.tempMarker = L.marker([place.lat, place.lng]).addTo(map);
+            map.setView([place.lat, place.lng], 13);
+            
+            state.isAdding = true; 
+            updateModalUI();
+            
+            // Visual tweaks for Edit Mode
+            document.querySelector('#modal-overlay h2').textContent = "Edit Spot";
+            els.btnSave.textContent = "Update Spot";
         };
 
         window.removePermission = async function(id) {
@@ -685,7 +720,16 @@
             updateModalUI();
         }
 
-        function resetForm() { state.formData = { lat: null, lng: null, city: '', title: '', description: '', instaLink: '' }; els.inputTitle.value = ''; els.inputDesc.value = ''; els.inputInsta.value = ''; els.inputGoogle.value = ''; els.inputSearch.value = ''; if (state.tempMarker) { map.removeLayer(state.tempMarker); state.tempMarker = null; } }
+        function resetForm() { 
+            state.formData = { lat: null, lng: null, city: '', title: '', description: '', instaLink: '' }; 
+            state.editingId = null; // Clear edit ID
+            els.inputTitle.value = ''; els.inputDesc.value = ''; els.inputInsta.value = ''; els.inputGoogle.value = ''; els.inputSearch.value = ''; 
+            if (state.tempMarker) { map.removeLayer(state.tempMarker); state.tempMarker = null; } 
+            
+            // Reset UI text
+            document.querySelector('#modal-overlay h2').textContent = "Add New Spot";
+            els.btnSave.textContent = "Save Spot";
+        }
 
         function setupEventListeners() {
             els.btnViewMap.onclick = () => { state.view = 'map'; updateViewUI(); };
