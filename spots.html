@@ -206,12 +206,22 @@
     <!-- Leaflet JS -->
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 
-    <script>
+    <!-- App Scripts (Module Type for Firebase) -->
+    <script type="module">
+        // Import Firebase
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, addDoc, deleteDoc, doc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // Firebase Configuration
+        const firebaseConfig = JSON.parse(__firebase_config);
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+
         // --- State ---
-        let places = JSON.parse(localStorage.getItem('instaSpots_data')) || [
-            { id: 1, lat: 40.7128, lng: -74.0060, title: "Joe's Pizza", description: "Classic NY slice seen on @foodie account", instaLink: "https://instagram.com", city: "New York" },
-            { id: 2, lat: 48.8566, lng: 2.3522, title: "Picnic Spot", description: "Near the Eiffel Tower", instaLink: "", city: "Paris" }
-        ];
+        let places = []; // Now managed by Firestore listener
 
         let state = {
             view: 'map', // 'map' | 'list'
@@ -283,6 +293,46 @@
             renderMarkers();
             renderList();
             setupEventListeners();
+            
+            // Start Auth
+            initAuth();
+        }
+
+        const initAuth = async () => {
+            if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                await signInWithCustomToken(auth, __initial_auth_token);
+            } else {
+                await signInAnonymously(auth);
+            }
+        };
+
+        // Listen for Auth state
+        onAuthStateChanged(auth, (user) => {
+            if (user) {
+                console.log("User signed in:", user.uid);
+                setupRealtimeListener(user);
+            }
+        });
+
+        // Setup Firestore Listener
+        function setupRealtimeListener(user) {
+            // Path: artifacts/{appId}/users/{userId}/spots
+            const colRef = collection(db, 'artifacts', appId, 'users', user.uid, 'spots');
+            
+            onSnapshot(colRef, (snapshot) => {
+                places = snapshot.docs.map(doc => ({
+                    id: doc.id,
+                    ...doc.data()
+                }));
+
+                // Sort by creation time (newest first) in memory
+                places.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+
+                renderMarkers();
+                renderList();
+            }, (error) => {
+                console.error("Error fetching spots:", error);
+            });
         }
 
         // --- Render Logic ---
@@ -403,6 +453,7 @@
                    <div class="text-center py-20 opacity-50">
                       <i data-lucide="map" class="w-12 h-12 mx-auto mb-4 text-gray-300"></i>
                       <p class="text-xl font-medium text-gray-400">No spots saved yet.</p>
+                      <p class="text-sm text-gray-400 mt-2">Add a spot to start your collection!</p>
                    </div>`;
                 lucide.createIcons();
                 return;
@@ -440,7 +491,7 @@
                                     <a href="https://www.google.com/maps/search/?api=1&query=${place.lat},${place.lng}" target="_blank" class="p-1.5 text-gray-400 hover:text-blue-500 hover:bg-blue-50 rounded-full transition-colors" title="Open in Google Maps">
                                         <i data-lucide="navigation" class="w-4 h-4"></i>
                                     </a>
-                                    <button onclick="deletePlace(${place.id})" class="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-full transition-colors">
+                                    <button onclick="window.deletePlace('${place.id}')" class="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-full transition-colors">
                                         <i data-lucide="trash-2" class="w-4 h-4"></i>
                                     </button>
                                 </div>
@@ -589,34 +640,53 @@
             removeTempMarker();
         }
 
-        function savePlace() {
+        async function savePlace() {
+            const user = auth.currentUser;
+            if (!user) {
+                alert("You must be logged in to save spots (check console if auth failed).");
+                return;
+            }
             if (!state.formData.lat || !state.formData.title) return;
 
+            // Prepare Data for Firestore
             const newPlace = {
-                id: Date.now(),
-                ...state.formData
+                ...state.formData,
+                createdAt: Date.now() // For sorting
             };
 
-            places.unshift(newPlace); // Add to top
-            localStorage.setItem('instaSpots_data', JSON.stringify(places));
-            
-            // Cleanup
-            state.isAdding = false;
-            resetForm();
-            updateModalUI();
-            
-            // Re-render
-            renderMarkers();
-            renderList();
+            els.btnSave.disabled = true;
+            els.btnSave.textContent = "Saving...";
+
+            try {
+                // Add to Firestore: artifacts/{appId}/users/{userId}/spots
+                await addDoc(collection(db, 'artifacts', appId, 'users', user.uid, 'spots'), newPlace);
+
+                // Reset UI (Listener will handle adding it to the list/map)
+                state.isAdding = false;
+                resetForm();
+                updateModalUI();
+
+            } catch (error) {
+                console.error("Error saving spot:", error);
+                alert("Failed to save spot. Please try again.");
+            } finally {
+                els.btnSave.textContent = "Save Spot";
+                els.btnSave.disabled = false;
+            }
         }
 
-        // Global function for onclick
-        window.deletePlace = function(id) {
+        // Global function for onclick in the generated HTML list
+        window.deletePlace = async function(id) {
+            const user = auth.currentUser;
+            if (!user) return;
+
             if(confirm("Delete this spot?")) {
-                places = places.filter(p => p.id !== id);
-                localStorage.setItem('instaSpots_data', JSON.stringify(places));
-                renderMarkers();
-                renderList();
+                try {
+                     await deleteDoc(doc(db, 'artifacts', appId, 'users', user.uid, 'spots', id));
+                } catch (e) {
+                    console.error("Error deleting spot:", e);
+                    alert("Could not delete spot.");
+                }
             }
         };
 
